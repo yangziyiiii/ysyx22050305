@@ -5,16 +5,21 @@
 static Context* (*user_handler)(Event, Context*) = NULL;
 
 Context* __am_irq_handle(Context *c) {
+  // printf("__am_irq_handle_mcause: %d\n",(int )c->mcause);
   if (user_handler) {
     Event ev = {0};
     switch (c->mcause) {
+      case -1: ev.event = EVENT_YIELD; c->mepc+=4; break;
+      case 0: case 1: case 2: case 3: case 4: case 5: case 6:
+      case 7: case 8: case 9: case 10: case 11: case 12:
+      case 13: case 14: case 15: case 16: case 17: case 18:
+      case 19: ev.event = EVENT_SYSCALL; c->mepc+=4; break;
       default: ev.event = EVENT_ERROR; break;
     }
 
     c = user_handler(ev, c);
     assert(c != NULL);
   }
-
   return c;
 }
 
@@ -35,11 +40,7 @@ Context *kcontext(Area kstack, void (*entry)(void *), void *arg) {
 }
 
 void yield() {
-#ifdef __riscv_e
-  asm volatile("li a5, -1; ecall");
-#else
   asm volatile("li a7, -1; ecall");
-#endif
 }
 
 bool ienabled() {

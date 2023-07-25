@@ -55,6 +55,7 @@ enum {
 #define AM_GPU_SUBTREE  2
 #define AM_GPU_NULL     0xffffffff
 
+
 typedef uint32_t gpuptr_t;
 
 struct gpu_texturedesc {

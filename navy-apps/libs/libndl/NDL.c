@@ -9,34 +9,56 @@ static int fbdev = -1;
 static int screen_w = 0, screen_h = 0;
 
 uint32_t NDL_GetTicks() {
-  return 0;
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  // printf("NDL_get ticks down\n");
+  return tv.tv_usec/1000;
+  
 }
 
 int NDL_PollEvent(char *buf, int len) {
-  return 0;
+  FILE* fp = fopen("/dev/events", "r");
+  memset(buf, 0, len);
+  fgets(buf, len, fp);
+  buf[strlen(buf) - 1] = '\0';     
+  fclose(fp);
+  return strlen(buf);
 }
 
 void NDL_OpenCanvas(int *w, int *h) {
-  if (getenv("NWM_APP")) {
-    int fbctl = 4;
-    fbdev = 5;
-    screen_w = *w; screen_h = *h;
-    char buf[64];
-    int len = sprintf(buf, "%d %d", screen_w, screen_h);
-    // let NWM resize the window and create the frame buffer
-    write(fbctl, buf, len);
-    while (1) {
-      // 3 = evtdev
-      int nread = read(3, buf, sizeof(buf) - 1);
-      if (nread <= 0) continue;
-      buf[nread] = '\0';
-      if (strcmp(buf, "mmap ok") == 0) break;
-    }
-    close(fbctl);
+  // if (getenv("NWM_APP")) {
+  //   int fbctl = 4;
+  //   fbdev = 5;
+  //   screen_w = *w; screen_h = *h;
+  //   char buf[64];
+  //   int len = sprintf(buf, "%d %d", screen_w, screen_h);
+  //   // let NWM resize the window and create the frame buffer
+  //   write(fbctl, buf, len);
+  //   while (1) {
+  //     // 3 = evtdev
+  //     int nread = read(3, buf, sizeof(buf) - 1);
+  //     if (nread <= 0) continue;
+  //     buf[nread] = '\0';
+  //     if (strcmp(buf, "mmap ok") == 0) break;
+  //   }
+  //   close(fbctl);
+  // }
+  FILE* fp = fopen("/proc/dispinfo", "r");
+  fscanf(fp, "WIDTH: %d\nHEIGHT: %d", &screen_w, &screen_h);
+  // printf("************************************************%d %d\n", screen_w, screen_h);
+  fclose(fp);
+  if(*w == 0 && *h == 0){
+    *w = screen_w; *h = screen_h;
   }
 }
 
 void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
+  int fd = open("/dev/fb",0,0);
+  for(int i = 0; i < h; i++){
+    lseek(fd, ((y+i)*screen_w+x), SEEK_SET);
+    write(fd, pixels + i * w, w);
+  }
+  close(fd);
 }
 
 void NDL_OpenAudio(int freq, int channels, int samples) {
