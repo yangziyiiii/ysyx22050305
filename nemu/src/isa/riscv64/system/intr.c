@@ -14,29 +14,23 @@
 ***************************************************************************************/
 
 #include <isa.h>
-#include <memory/paddr.h>
+#include <debug.h>
 
-// this is not consistent with uint8_t
-// but it is ok since we do not access the array directly
-static const uint32_t img [] = {
-  0x800002b7,  // lui t0,0x80000
-  0x0002a023,  // sw  zero,0(t0)
-  0x0002a503,  // lw  a0,0(t0)
-  0x00100073,  // ebreak (used as nemu_trap)
-};
-
-static void restart() {
-  /* Set the initial program counter. */
-  cpu.pc = RESET_VECTOR;
-
-  /* The zero register is always 0. */
-  cpu.gpr[0] = 0;
+word_t isa_raise_intr(word_t NO, vaddr_t epc) {
+  /* TODO: Trigger an interrupt/exception with ``NO''.
+   * Then return the address of the interrupt/exception vector.
+   */
+#ifdef CONFIG_ETRACE
+  switch(NO){
+    case 0xb: Log("Environment call from M-mode");break;
+    default: panic("Unhandled Exception Code = "FMT_WORD , NO);
+  }
+#endif
+  cpu.mepc = epc;
+  cpu.mcause = NO;
+  return cpu.mtvec;
 }
 
-void init_isa() {
-  /* Load built-in image. */
-  memcpy(guest_to_host(RESET_VECTOR), img, sizeof(img));
-
-  /* Initialize this virtual computer system. */
-  restart();
+word_t isa_query_intr() {
+  return INTR_EMPTY;
 }

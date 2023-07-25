@@ -18,20 +18,25 @@
 #include <device/mmio.h>
 #include <isa.h>
 
-#if   defined(CONFIG_PMEM_MALLOC)
+#if   defined(CONFIG_PMEM_MALLOC)  //为pmem重新分配内存
 static uint8_t *pmem = NULL;
 #else // CONFIG_PMEM_GARRAY
 static uint8_t pmem[CONFIG_MSIZE] PG_ALIGN = {};
 #endif
 
+//将虚拟地址转换成物理地址
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
+
+//将物理地址转换成虚拟地址
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
+//从内存中读取数据
 static word_t pmem_read(paddr_t addr, int len) {
   word_t ret = host_read(guest_to_host(addr), len);
   return ret;
 }
 
+//向内存中写入数据
 static void pmem_write(paddr_t addr, int len, word_t data) {
   host_write(guest_to_host(addr), len, data);
 }
@@ -56,7 +61,19 @@ void init_mem() {
   Log("physical memory area [" FMT_PADDR ", " FMT_PADDR "]", PMEM_LEFT, PMEM_RIGHT);
 }
 
+//从给定的物理地址中读取指定长度的数据
 word_t paddr_read(paddr_t addr, int len) {
+
+#ifdef CONFIG_MTRACE
+  word_t data = 0;
+  if (likely(in_pmem(addr))) {
+    data = pmem_read(addr, len);
+    printf("mtrace: nemu read %-9lx from addr: " FMT_PADDR "\n", data, addr);
+    //printf("paddr_read-addr:"FMT_PADDR"  data:%lx\n",addr,data);
+    //Log("%#x: read %#x from addr: %#x\n", (unsigned int)cpu.pc, (unsigned int)data, (unsigned int)addr);
+  }
+#endif
+
   if (likely(in_pmem(addr))) return pmem_read(addr, len);
   IFDEF(CONFIG_DEVICE, return mmio_read(addr, len));
   out_of_bound(addr);
@@ -64,6 +81,15 @@ word_t paddr_read(paddr_t addr, int len) {
 }
 
 void paddr_write(paddr_t addr, int len, word_t data) {
+
+#ifdef CONFIG_MTRACE
+  if (likely(in_pmem(addr))) {
+    printf("mtrace: nemu write %-8lx from addr: " FMT_PADDR "\n", data, addr);
+    //printf("paddr_write-addr:"FMT_PADDR"  data:%lx\n",addr,data);
+    //Log("%#x: write %#x from addr: %#x\n", (unsigned int)cpu.pc, (unsigned int)data, (unsigned int)addr);
+  }
+#endif
+  
   if (likely(in_pmem(addr))) { pmem_write(addr, len, data); return; }
   IFDEF(CONFIG_DEVICE, mmio_write(addr, len, data); return);
   out_of_bound(addr);
