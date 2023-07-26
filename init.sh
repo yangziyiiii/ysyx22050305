@@ -3,7 +3,7 @@
 # usage: addenv env_name path
 function addenv() {
   sed -i -e "/^export $1=.*/d" ~/.bashrc
-  echo "export $1=`readlink -f $2`" >> ~/.bashrc
+  echo "export $1=`readlink -e $2`" >> ~/.bashrc
   echo "By default this script will add environment variables into ~/.bashrc."
   echo "After that, please run 'source ~/.bashrc' to let these variables take effect."
   echo "If you use shell other than bash, please add these environment variables manually."
@@ -40,10 +40,10 @@ function init() {
 
 case $1 in
   nemu)
-    init NJU-ProjectN/nemu ics2023 nemu true NEMU_HOME
+    init NJU-ProjectN/nemu ysyx2204 nemu true NEMU_HOME
     ;;
   abstract-machine)
-    init NJU-ProjectN/abstract-machine ics2023 abstract-machine true AM_HOME
+    init NJU-ProjectN/abstract-machine ysyx2204 abstract-machine true AM_HOME
     init NJU-ProjectN/fceux-am ics2021 fceux-am false
     ;;
   am-kernels)
@@ -53,7 +53,7 @@ case $1 in
     init NJU-ProjectN/nanos-lite ics2021 nanos-lite true
     ;;
   navy-apps)
-    init NJU-ProjectN/navy-apps ics2023 navy-apps true NAVY_HOME
+    init NJU-ProjectN/navy-apps ics2021 navy-apps true NAVY_HOME
     ;;
   nvboard)
     init NJU-ProjectN/nvboard master nvboard false NVBOARD_HOME
@@ -63,7 +63,7 @@ case $1 in
       echo "chisel repo is already initialized, skipping..."
     else
       rm -rf npc
-      init OpenXiangShan/chisel-playground master npc true NPC_HOME
+      init OpenXiangShan/chisel-playground ysyx2204 npc true NPC_HOME
     fi
     ;;
   npc)

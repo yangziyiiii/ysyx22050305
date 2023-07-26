@@ -1,9 +1,9 @@
-STUID = ysyx_22050305
-STUNAME = 杨子毅
+STUID = ysyx_22040000
+STUNAME = 张三
 
 # DO NOT modify the following code!!!
 
-TRACER = tracer-ysyx
+TRACER = tracer-ysyx2204
 GITFLAGS = -q --author='$(TRACER) <tracer@ysyx.org>' --no-verify --allow-empty
 
 YSYX_HOME = $(NEMU_HOME)/..
