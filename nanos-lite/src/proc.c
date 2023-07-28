@@ -24,7 +24,8 @@ void init_proc() {
 
   Log("Initializing processes...");
 
-  naive_uload(NULL, "/bin/file-test");// load program here
+  // load program here
+  naive_uload(NULL,"/bin/bmp-test");  
 
 }
 

@@ -4,17 +4,33 @@
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/time.h>
+#include <fcntl.h>
+#include <assert.h>
+
 static int evtdev = -1;
 static int fbdev = -1;
 static int screen_w = 0, screen_h = 0;
+static int canvas_w = 0, canvas_h = 0;
 
 uint32_t NDL_GetTicks() {
-  return 0;
+  struct timeval tv;
+  gettimeofday(&tv,NULL);
+  // printf("NDL_get ticks down\n");
+  return tv.tv_usec/1000;
+  
 }
 
 int NDL_PollEvent(char *buf, int len) {
-  return 0;
+  FILE* fp = fopen("/dev/events", "r");
+  memset(buf, 0, len);
+  fgets(buf, len, fp);
+  buf[strlen(buf) - 1] = '\0';     
+  fclose(fp);
+  return strlen(buf);
 }
+
+
 
 void NDL_OpenCanvas(int *w, int *h) {
   if (getenv("NWM_APP")) {
@@ -33,11 +49,65 @@ void NDL_OpenCanvas(int *w, int *h) {
       if (strcmp(buf, "mmap ok") == 0) break;
     }
     close(fbctl);
+  }else{
+    int fd = open("/proc/dispinfo", O_RDONLY);
+    char buf[32];
+    if (read(fd, buf, sizeof(buf))){
+      sscanf(buf, "WIDTH: %d\nHEIGHT: %d\n", &screen_w, &screen_h);
+    }
+    //printf("screen_w:%d screen_h:%d\n", screen_w, screen_h);
+    assert(screen_w >= *w && screen_h >= *h);
+
+    if(*w == 0 && *h == 0){
+      *w = screen_w;
+      *h = screen_h;
+    }
+    canvas_w = *w;
+    canvas_h = *h;
+    printf("screen_w: %d, screen_h: %d\n", screen_w, screen_h);
+    printf("canvas_w: %d, canvas_h: %d\n", canvas_w, canvas_h);
+    close(fd);
   }
 }
 
+// 向画布`(x, y)`坐标处绘制`w*h`的矩形图像, 并将该绘制区域同步到屏幕上
+// 图像像素按行优先方式存储在`pixels`中, 每个像素用32位整数以`00RRGGBB`的方式描述颜色
 void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
+  int fd = open("/dev/fb", O_RDWR);
+  x += (screen_w - canvas_w) / 2;
+  y += (screen_h - canvas_h) / 2;
+  //printf("NDL_DrawRect\n");
+  for (int i=0;i<h;i++){
+    lseek(fd, ((y + i) * screen_w + x) * 4, SEEK_SET);
+    write(fd, pixels, 4 * w);
+    pixels += w;
+  }
+  close(fd);
 }
+
+
+
+// void NDL_OpenCanvas(int *w, int *h) {
+  
+//   FILE* fp = fopen("/proc/dispinfo", "r");
+//   fscanf(fp, "WIDTH: %d\nHEIGHT: %d", &screen_w, &screen_h);
+//   fclose(fp);
+//   if(*w == 0 && *h == 0){
+//     *w = screen_w; *h = screen_h;
+//   }
+//   printf("%d %d\n", screen_w, screen_h);
+
+
+// }
+
+// void NDL_DrawRect(uint32_t *pixels, int x, int y, int w, int h) {
+//   int fd = open("/dev/fb",0,0);
+//   for(int i = 0; i < h; i++){
+//     lseek(fd, ((y+i)*screen_w+x), SEEK_SET);
+//     write(fd, pixels + i * w, w);
+//   }
+//   close(fd);
+// }
 
 void NDL_OpenAudio(int freq, int channels, int samples) {
 }

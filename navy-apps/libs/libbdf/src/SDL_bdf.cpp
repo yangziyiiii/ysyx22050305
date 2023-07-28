@@ -18,3 +18,4 @@ SDL_Surface* BDF_CreateSurface(BDF_Font *font, char ch, uint32_t fg, uint32_t bg
   s->flags &= ~SDL_PREALLOC;
   return s;
 }
+//用于创建一个SDL表面（SDL_Surface），该表面用于显示位图字体文件（BDF_Font）中的字符。

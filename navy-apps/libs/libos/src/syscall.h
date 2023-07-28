@@ -7,17 +7,17 @@ enum {
   SYS_open,
   SYS_read,
   SYS_write,
-  SYS_kill,
+  SYS_kill,//5
   SYS_getpid,
   SYS_close,
   SYS_lseek,
   SYS_brk,
-  SYS_fstat,
+  SYS_fstat,//10
   SYS_time,
   SYS_signal,
   SYS_execve,
   SYS_fork,
-  SYS_link,
+  SYS_link,//15
   SYS_unlink,
   SYS_wait,
   SYS_times,
