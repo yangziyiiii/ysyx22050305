@@ -46,10 +46,11 @@ size_t dispinfo_read(void *buf, size_t offset, size_t len) {
 
 //根据给定的偏移量，在帧缓冲区中确定写入数据的位置，并使用io_write函数将数据写入帧缓冲区
 size_t fb_write(const void *buf, size_t offset, size_t len) {
+  offset = offset / 4;
   AM_GPU_CONFIG_T _config = io_read(AM_GPU_CONFIG);
   int x = (offset) % _config.width;
   int y = (offset) / _config.width;
-  io_write(AM_GPU_FBDRAW, x, y, (void*)buf, len, 1, true);
+  io_write(AM_GPU_FBDRAW, x, y, (void*)buf, len/4, 1, true);
   return len;
 }
 

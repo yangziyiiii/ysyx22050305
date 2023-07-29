@@ -21,8 +21,6 @@ int main() {
     fprintf(fp, "%4d\n", i + 1 + 1000); //写入新的数据
     
   }
-//question: fprintf can't add the offset
-
 
   for (i = 500; i < 1000; i ++) {    
     fscanf(fp, "%d", &n);                  //检查原来的数据   
