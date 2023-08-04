@@ -20,12 +20,6 @@ word_t isa_raise_intr(word_t NO, vaddr_t epc) {
   /* TODO: Trigger an interrupt/exception with ``NO''.
    * Then return the address of the interrupt/exception vector.
    */
-#ifdef CONFIG_ETRACE
-  switch(NO){
-    case 0xb: Log("Environment call from M-mode");break;
-    default: panic("Unhandled Exception Code = "FMT_WORD , NO);
-  }
-#endif
   cpu.mepc = epc;
   cpu.mcause = NO;
   return cpu.mtvec;

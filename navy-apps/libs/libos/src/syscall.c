@@ -41,8 +41,12 @@
 #error _syscall_ is not implemented
 #endif
 
+//执行一个由type参数指定的系统调用，并将a0、a1和a2作为参数传递给系统调用。函数返回系统调用的返回值。
+// GPR1用于传递系统调用的类型参数。
+// GPR2、GPR3和GPR4用于传递系统调用的参数。
+// GPRx用于存储系统调用的返回值。
 intptr_t _syscall_(intptr_t type, intptr_t a0, intptr_t a1, intptr_t a2) {
-  register intptr_t _gpr1 asm (GPR1) = type;
+  register intptr_t _gpr1 asm (GPR1) = type; //a7
   register intptr_t _gpr2 asm (GPR2) = a0;
   register intptr_t _gpr3 asm (GPR3) = a1;
   register intptr_t _gpr4 asm (GPR4) = a2;
@@ -57,41 +61,44 @@ void _exit(int status) {
 }
 
 int _open(const char *path, int flags, mode_t mode) {
-  _exit(SYS_open);
-  return 0;
+  return _syscall_(SYS_open,(intptr_t)path,flags,mode);
 }
 
 int _write(int fd, void *buf, size_t count) {
-  _exit(SYS_write);
-  return 0;
+  return _syscall_(SYS_write,fd,(intptr_t)buf,count);
 }
 
+extern char end;
+intptr_t program_break = (intptr_t)&end;
 void *_sbrk(intptr_t increment) {
-  return (void *)-1;
+  intptr_t brk = program_break;
+  if(_syscall_(SYS_brk,increment,0,0)==0){
+    program_break += increment;
+  }
+  return brk;
 }
 
 int _read(int fd, void *buf, size_t count) {
-  _exit(SYS_read);
-  return 0;
+  return _syscall_(SYS_read,fd, (intptr_t)buf,count);
 }
 
 int _close(int fd) {
-  _exit(SYS_close);
-  return 0;
+  return _syscall_(SYS_close,fd,0,0);
 }
 
 off_t _lseek(int fd, off_t offset, int whence) {
-  _exit(SYS_lseek);
-  return 0;
+  return _syscall_(SYS_lseek,fd,offset,whence);
 }
 
 int _gettimeofday(struct timeval *tv, struct timezone *tz) {
-  _exit(SYS_gettimeofday);
+  long int time_us = _syscall_(SYS_gettimeofday,0,0,0);
+  tv->tv_sec = time_us/1000000;  //time_us是以微秒为单位，要转换成秒
+  tv->tv_usec = time_us;
   return 0;
 }
 
 int _execve(const char *fname, char * const argv[], char *const envp[]) {
-  _exit(SYS_execve);
+  _syscall_(SYS_execve,(intptr_t)fname,(intptr_t)argv,(intptr_t)envp);
   return 0;
 }
 
