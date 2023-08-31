@@ -21,15 +21,14 @@ image: $(IMAGE).elf
 	@echo + OBJCOPY "->" $(IMAGE_REL).bin
 	@$(OBJCOPY) -S --set-section-flags .bss=alloc,contents -O binary $(IMAGE).elf $(IMAGE).bin
 
-NPCFLAGS += -l $(shell dirname $(IMAGE).elf)/npc-log.txt
-NPCFLAGS += -b #启用批处理模式
-# NPCFLAGS += -e $(IMAGE).elf#输入elf
+override NPCFLAGS += -b -l $(shell dirname $(IMAGE).elf)/npc-log.txt
 
 run: image
 	$(MAKE) -C $(NPC_HOME) ISA=$(ISA) run ARGS="$(NPCFLAGS)" IMG=$(IMAGE).bin
+	
+sim: image
+	$(MAKE) -C $(NPC_HOME) ISA=$(ISA) sim ARGS="$(NPCFLAGS)" IMG=$(IMAGE)
+	
+wave: image
+	$(MAKE) -C $(NPC_HOME) ISA=$(ISA) wave ARGS="$(NPCFLAGS)" IMG=$(IMAGE)
 
-gdb: image
-	$(MAKE) -C $(NPC_HOME) ISA=$(ISA) gdb ARGS="$(NEMUFLAGS)" IMG=$(IMAGE).bin
-
-sim: 
-	$(MAKE) -C $(NPC_HOME) sim

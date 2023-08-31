@@ -15,8 +15,6 @@
 
 #include <isa.h>
 #include <memory/paddr.h>
-#include <elf.h>
-#include <ftrace.h>
 
 void init_rand();
 void init_log(const char *log_file);
@@ -26,14 +24,11 @@ void init_device();
 void init_sdb();
 void init_disasm(const char *triple);
 
-void load_elf_tables(char *file);
-
-
 static void welcome() {
   Log("Trace: %s", MUXDEF(CONFIG_TRACE, ANSI_FMT("ON", ANSI_FG_GREEN), ANSI_FMT("OFF", ANSI_FG_RED)));
   // IFDEF(CONFIG_TRACE, Log("If trace is enabled, a log file will be generated "
-  //       "to record the trace. This may lead to a large log file. "
-  //       "If it is not necessary, you can disable it in menuconfig"));
+        // "to record the trace. This may lead to a large log file. "
+        // "If it is not necessary, you can disable it in menuconfig"));
   Log("Build time: %s, %s", __TIME__, __DATE__);
   printf("Welcome to %s-NEMU!\n", ANSI_FMT(str(__GUEST_ISA__), ANSI_FG_YELLOW ANSI_BG_RED));
   printf("For help, type \"help\"\n");
@@ -50,7 +45,6 @@ static char *log_file = NULL;
 static char *diff_so_file = NULL;
 static char *img_file = NULL;
 static int difftest_port = 1234;
-
 
 static long load_img() {
   if (img_file == NULL) {
@@ -74,6 +68,85 @@ static long load_img() {
   return size;
 }
 
+#ifdef CONFIG_FTRACE
+#include <elf.h>
+#include "sdb/sdb.h"
+Elf64_Sym *symtab;
+char strtab[100000];
+
+Functab functab[1024]; 
+int functab_len;
+static int elf_load(){
+  char elf[128];
+  strcpy(elf, img_file);
+  elf[strlen(img_file)-3] = '\0';
+  strcat(elf, "elf");
+
+  FILE *fp = fopen(elf, "r");
+
+  Assert(fp, "Can not open '%s'", elf);
+  
+  Elf64_Ehdr elf_head;
+  int a;
+  a = fread(&elf_head, sizeof(Elf64_Ehdr), 1, fp);
+  Assert(a, "fail to fread ELF_head");
+
+  if (elf_head.e_ident[0] != 0x7F ||
+      elf_head.e_ident[1] != 'E' ||
+      elf_head.e_ident[2] != 'L' ||
+      elf_head.e_ident[3] != 'F')
+  {
+    printf("Not a ELF file\n");
+    assert(0);
+  }
+  // 解析section 分配内存 section * 数量
+	Elf64_Shdr *shdr = (Elf64_Shdr*)malloc(sizeof(Elf64_Shdr) * elf_head.e_shnum);
+  Assert(shdr, "shdr malloc failed");
+
+	// 设置fp偏移量 offset，e_shoff含义
+	a = fseek(fp, (long int)elf_head.e_shoff, SEEK_SET); //fseek调整指针的位置，采用参考位置+偏移量
+  Assert((a==0), "fail to fseek");
+
+	// 读取section 到 shdr, 大小为shdr * 数量
+	a = fread(shdr, sizeof(Elf64_Shdr) * elf_head.e_shnum, 1, fp);
+  Assert(a, "fail to read section");
+
+	// 重置指针位置到文件流开头
+	rewind(fp);
+  int symtab_len=0;
+	// 遍历
+	for (int i = 0; i < elf_head.e_shnum; i++)
+	{
+    if(shdr[i].sh_type == SHT_SYMTAB){
+      symtab = (Elf64_Sym*)malloc(shdr[i].sh_size);
+      symtab_len = shdr[i].sh_size / sizeof(Elf64_Sym);
+	    a = fseek(fp, shdr[i].sh_offset, SEEK_SET);
+      Assert((a==0), "fail to fseek");
+      a = fread(symtab, shdr[i].sh_size, 1, fp);
+      Assert(a, "fail to read symtab");
+    }
+		if(shdr[i].sh_type == SHT_STRTAB && i != elf_head.e_shstrndx){
+      a = fseek(fp, shdr[i].sh_offset, SEEK_SET);
+      Assert((a==0), "fail to fseek");
+      a = fread(strtab, shdr[i].sh_size, 1, fp);
+      Assert(a, "fail to read strtab");
+    } 
+	 }
+  free(shdr); 
+  fclose(fp);
+  for(int i=0;i < symtab_len; i++){
+    if(ELF64_ST_TYPE(symtab[i].st_info) == STT_FUNC){
+      strcpy(functab[functab_len].name, strtab+symtab[i].st_name);
+      functab[functab_len].start = symtab[i].st_value;
+      functab[functab_len].size = symtab[i].st_size;
+      functab_len++;
+    }
+  }
+  return 0;
+}
+#endif
+
+
 static int parse_args(int argc, char *argv[]) {
   const struct option table[] = {
     {"batch"    , no_argument      , NULL, 'b'},
@@ -81,18 +154,18 @@ static int parse_args(int argc, char *argv[]) {
     {"diff"     , required_argument, NULL, 'd'},
     {"port"     , required_argument, NULL, 'p'},
     {"help"     , no_argument      , NULL, 'h'},
-    {"ftrace"   , required_argument, NULL, 'f'},
     {0          , 0                , NULL,  0 },
   };
   int o;
-  while ( (o = getopt_long(argc, argv, "-bhl:d:p:f:", table, NULL)) != -1) {
+  while ( (o = getopt_long(argc, argv, "-bhl:d:p:", table, NULL)) != -1) {
     switch (o) {
       case 'b': sdb_set_batch_mode(); break;
       case 'p': sscanf(optarg, "%d", &difftest_port); break;
       case 'l': log_file = optarg; break;
       case 'd': diff_so_file = optarg; break;
-      case 'f': load_elf_tables(optarg);; break;
-      case 1: img_file = optarg; return 0;
+      case 1: img_file = optarg; 
+        IFDEF(CONFIG_FTRACE, elf_load());
+        return 0;
       default:
         printf("Usage: %s [OPTION...] IMAGE [args]\n\n", argv[0]);
         printf("\t-b,--batch              run with batch mode\n");
@@ -140,8 +213,10 @@ void init_monitor(int argc, char *argv[]) {
   IFDEF(CONFIG_ITRACE, init_disasm(
     MUXDEF(CONFIG_ISA_x86,     "i686",
     MUXDEF(CONFIG_ISA_mips32,  "mipsel",
-    MUXDEF(CONFIG_ISA_riscv32, "riscv32",
-    MUXDEF(CONFIG_ISA_riscv64, "riscv64", "bad")))) "-pc-linux-gnu"
+    MUXDEF(CONFIG_ISA_riscv,
+      MUXDEF(CONFIG_RV64,      "riscv64",
+                               "riscv32"),
+                               "bad"))) "-pc-linux-gnu"
   ));
 #endif
 

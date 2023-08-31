@@ -17,7 +17,32 @@
 #define __SDB_H__
 
 #include <common.h>
+#include <memory/vaddr.h>
+
+typedef struct watchpoint {
+  int NO;
+  struct watchpoint *next;
+
+  /* TODO: Add more members if necessary */
+  char expr[32];
+  word_t value;
+} WP;
+
+typedef struct {
+    char name[64];
+    paddr_t start;    
+    size_t size;        
+}Functab;             
+
 
 word_t expr(char *e, bool *success);
+
+WP* new_wp(char *e);
+
+void free_wp(char *e);
+
+int difftest_watchpoint();
+
+void display_wp();
 
 #endif

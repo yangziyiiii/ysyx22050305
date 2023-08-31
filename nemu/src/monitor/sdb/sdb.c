@@ -18,7 +18,6 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include "sdb.h"
-#include "memory/paddr.h"
 
 static int is_batch_mode = false;
 
@@ -48,62 +47,104 @@ static int cmd_c(char *args) {
   return 0;
 }
 
+
 static int cmd_q(char *args) {
   nemu_state.state = NEMU_QUIT;
   return -1;
 }
 
-static int cmd_si(char *args){	
-  /* extract the first argument */
-  char *arg = strtok(NULL, " ");
-  int i;
-
-  if (arg == NULL) {
-    /* no argument given */
-	  cpu_exec(1);
-  }
-  else{
-    sscanf(arg,"%d",&i);
-    cpu_exec(i);
-  }
-  return 0;
-}
-
-static int cmd_info(char *args)
-{
-  /* extract the first argument */
-  char *arg = strtok(NULL, " ");
-  if (strcmp(arg,"r") == 0) {
-	  isa_reg_display();
-  }
-  // else if (strcmp(arg,"w")==0){
-  // 	print_wp();
-  // }
-  else{
-  	printf("please enter r or w\n");
-  }	 
-  return 0;
-}
-
-static int cmd_x(char *args)
-{
-  int i;  
-  int len;
-  paddr_t address;
-  char *arg = strtok(NULL, " ");
-  char *EXPR = strtok(NULL, " ");
-  sscanf(arg,"%d",&len);
-  sscanf(EXPR,"%x",&address);
-  for(i=0;i<len;i++){
-    printf("0x%x\t:%08lx\n",address,paddr_read(address,1));
-    address+=8;
-  } 
-  return 0;
-}
-
-
-
 static int cmd_help(char *args);
+
+static int cmd_si(char *args){
+  char *arg = strtok(args, "");
+  if(arg == NULL){
+    cpu_exec(1);
+    return 0;
+  }else{
+    int n=atoi(arg);
+    cpu_exec(n);
+    return 0;
+  }
+}
+
+static int cmd_info(char *args) {
+  char *arg = strtok(args, " ");
+  if (arg == NULL) {
+    printf("info r for reg, info w for watch point\n");
+  }
+  else if (strcmp(arg,"r") == 0) {
+    isa_reg_display();
+  }else if(strcmp(arg,"w") == 0){
+    display_wp();
+  }else {
+    printf("Unknown command info '%s'\n", arg);
+  }
+  return 0;
+}
+
+static int cmd_x(char *args) {
+  char *arg = strtok(args, " ");
+  if (arg == NULL) {
+    printf("x N EXPR: Evaluate the expression EXPR and use the result as \
+    starting memory Address, output in hexadecimal form of N consecutive 4 bytes\n");
+    return 1;
+  }
+  int n = atoi(arg);
+  char *e = strtok(NULL, " ");
+  if (e == NULL) {
+    printf("x N EXPR: Evaluate the expression EXPR and use the result as \
+    starting memory Address, output in hexadecimal form of N consecutive 4 bytes\n");
+    return 1;
+  }
+  vaddr_t vaddr;
+  sscanf(e, "0x%lx", &vaddr);
+  int i;
+  for(i=0;i<n;i++) {
+    printf("0x%.16lx: ", vaddr);
+    word_t data = vaddr_read(vaddr, 4);
+    printf("%.8lx " , data);
+    vaddr += 4;
+    printf("\n");
+  }
+  return 0;
+}
+
+
+static int cmd_p(char *args){
+  bool success = true;
+  word_t value = expr(args, &success);
+  if(!success){
+    printf("wrong expression\n");
+  }else
+    printf("0x%lx\n", value);
+  return 0;
+}
+
+static int cmd_w(char *args){
+  new_wp(args);
+  return 0;
+}
+
+static int cmd_d(char *args){
+  free_wp(args);
+  return 0;
+}
+
+// static int cmd_detach(char *args){
+//   #ifdef CONFIG_DIFFTEST
+//     extern void detach();
+//     detach();
+//   #endif
+//   return 0;
+// }
+
+// static int cmd_attach(char *args){
+//   #ifdef CONFIG_DIFFTEST
+//     extern void attach();
+//     attach();
+//   #endif
+//   return 0;
+// }
 
 static struct {
   const char *name;
@@ -113,9 +154,14 @@ static struct {
   { "help", "Display information about all supported commands", cmd_help },
   { "c", "Continue the execution of the program", cmd_c },
   { "q", "Exit NEMU", cmd_q },
-  { "si", "execute one time",cmd_si },
-  { "info", "register information", cmd_info},
-  { "x", "scan memory", cmd_x},
+  { "si", "Single step N(<10) instructions", cmd_si },
+  { "info", "Print program status(r for reg, w for watch point)", cmd_info },
+  { "x", "Scan memory", cmd_x },
+  { "p", "Expression evaluation", cmd_p },
+  { "w", "Set up watch points", cmd_w },
+  { "d", "Delete watch points", cmd_d },
+  // { "detach", "Quit Difftest", cmd_detach },
+  // { "attach", "Enter Difftest", cmd_attach },
 
   /* TODO: Add more commands */
 

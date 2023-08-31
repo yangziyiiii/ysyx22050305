@@ -20,9 +20,13 @@
  */
 #include <regex.h>
 
-enum {
-  TK_NOTYPE = 256, TK_EQ,
+word_t vaddr_read(vaddr_t addr, int len);
 
+enum {
+  TK_NOTYPE = 256, TK_EQ, TK_NEQ, TK_AND,
+  TK_DEC, TK_HEX, //number
+  TK_REG,
+  TK_MINUS, TK_POINT 
   /* TODO: Add more token types */
 
 };
@@ -37,8 +41,18 @@ static struct rule {
    */
 
   {" +", TK_NOTYPE},    // spaces
+  {"0x[0-9a-fA-F]+", TK_HEX}, 
+  {"0|[1-9][0-9]*", TK_DEC},    
+  {"\\$(\\$0|\\w{2,3})", TK_REG}, 
+  {"\\(", '('},         
+  {"\\)", ')'},         
+  {"\\*", '*'},         // mul
+  {"\\/", '/'},         // div
   {"\\+", '+'},         // plus
+  {"-", '-'},           // sub
   {"==", TK_EQ},        // equal
+  {"!=", TK_NEQ},       // not equal
+  {"&&", TK_AND},       // and
 };
 
 #define NR_REGEX ARRLEN(rules)
@@ -84,8 +98,8 @@ static bool make_token(char *e) {
         char *substr_start = e + position;
         int substr_len = pmatch.rm_eo;
 
-        Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
-            i, rules[i].regex, position, substr_len, substr_len, substr_start);
+      //  Log("match rules[%d] = \"%s\" at position %d with len %d: %.*s",
+      //      i, rules[i].regex, position, substr_len, substr_len, substr_start);
 
         position += substr_len;
 
@@ -93,15 +107,51 @@ static bool make_token(char *e) {
          * to record the token in the array `tokens'. For certain types
          * of tokens, some extra actions should be performed.
          */
-
-        switch (rules[i].token_type) {
-          default: TODO();
+        if(substr_len >= 32){
+          printf("warning: token strlen >= 32\n");
+          assert(0);
         }
-
+        switch (rules[i].token_type) {
+          case TK_NOTYPE: break;
+          case '*': //point or mul
+            if(nr_token == 0 || (tokens[nr_token-1].type != TK_DEC && tokens[nr_token-1].type!= TK_HEX 
+            && tokens[nr_token-1].type!= TK_REG && tokens[nr_token-1].type!=')'))  
+              tokens[nr_token].type = TK_POINT;
+            else
+              tokens[nr_token].type = rules[i].token_type;
+            nr_token++;
+            break;
+          case '-': //minus or sub
+            if(nr_token == 0 || (tokens[nr_token-1].type != TK_DEC && tokens[nr_token-1].type!= TK_HEX 
+            && tokens[nr_token-1].type!= TK_REG && tokens[nr_token-1].type!=')'))  
+              tokens[nr_token].type = TK_MINUS;
+            else
+              tokens[nr_token].type = rules[i].token_type;
+            nr_token++;
+            break;
+          case TK_EQ: 
+          case TK_NEQ: 
+          case TK_AND: 
+          case '(':
+          case ')':
+          case '/':
+          case '+':
+            tokens[nr_token].type = rules[i].token_type;
+            nr_token++;
+            break;
+          default: 
+            tokens[nr_token].type = rules[i].token_type;
+            strncpy(tokens[nr_token].str, substr_start, substr_len);
+            tokens[nr_token].str[substr_len] = '\0';
+            nr_token++;
+        }
         break;
       }
     }
-
+    if(nr_token >= 32){
+      printf("warning: token more than 32\n");
+      assert(0);
+    }
     if (i == NR_REGEX) {
       printf("no match at position %d\n%s\n%*.s^\n", position, e, position, "");
       return false;
@@ -109,6 +159,123 @@ static bool make_token(char *e) {
   }
 
   return true;
+}
+
+static bool check_parentheses(int p, int q){
+  if(tokens[p].type != '(' || tokens[q].type != ')')
+    return false;
+  int i, num = 0;
+  for(i=p;i<=q;i++){    
+        if(tokens[i].type == '(') num++;
+        else if(tokens[i].type == ')') num--;
+        if(num <= 0 && i < q) 
+          return false;  
+    }                              
+  if(num != 0) 
+    return false;   
+  return true;
+}
+
+static int prior(int type){
+  switch (type)
+  {
+  case TK_POINT:
+  case TK_MINUS:
+    return 2;
+  case '*':
+  case '/':
+    return 3;
+  case '+':
+  case '-':
+    return 4;
+  case TK_EQ:
+  case TK_NEQ:
+    return 7;
+  case TK_AND:
+    return 11;
+  default:
+    return 0;
+  }
+}
+
+static word_t eval(int p, int q){
+  if (p > q) {
+    /* Bad expression */
+    assert(0);
+  }
+  else if (p == q) {
+    /* Single token.
+     * For now this token should be a number.
+     * Return the value of the number.
+     */
+    word_t num;
+    switch(tokens[p].type){
+      case TK_HEX: sscanf(tokens[p].str, "0x%lx", &num); return num;
+      case TK_DEC: sscanf(tokens[p].str, "%ld", &num); return num;
+      case TK_REG: 
+        bool success = true;
+        strcpy(tokens[p].str, tokens[p].str+1);
+        word_t value = isa_reg_str2val(tokens[p].str, &success);
+        assert(success);
+        return value;
+      default: assert(0);
+    }
+  }
+  else if (check_parentheses(p, q) == true) {
+    /* The expression is surrounded by a matched pair of parentheses.
+     * If that is the case, just throw away the parentheses.
+     */
+    return eval(p + 1, q - 1);
+  }
+  else {
+    if(tokens[p].type == TK_MINUS || tokens[p].type == TK_POINT ){
+      switch (tokens[p].type)
+      {
+      case TK_MINUS:
+        return - eval(p+1, q);
+      case TK_POINT:
+        return vaddr_read(eval(p+1, q), 8);
+      default:
+        break;
+      }
+    }
+
+    int op = p; //the position of 主运算符 in the token expression;
+    int op_type = 0;
+    int i, cnt=0;
+    for(i=p;i<q;i++){
+      if(tokens[i].type == '('){
+        cnt++;
+        while (cnt>0 && i<q)
+        {
+          i++;
+          if(tokens[i].type == '(') cnt++;
+          else if(tokens[i].type == ')') cnt--;
+        }
+      }
+      else if(tokens[i].type != TK_DEC && tokens[i].type != TK_HEX && 
+        tokens[i].type != TK_REG && prior(op_type)<= prior(tokens[i].type)){
+          op_type = tokens[i].type;
+          op = i;
+        }
+    }
+    word_t val1 = eval(p, op - 1);
+    word_t val2 = eval(op + 1, q);
+
+    switch (op_type) {
+      case '+': return val1 + val2;
+      case '-': return val1 - val2;
+      case '*': return val1 * val2;
+      case '/': if(val2 == 0){
+        printf("div-by-zero\n");
+        return 0;
+        }else      return val1 / val2;
+      case TK_EQ:  return val1 == val2;
+      case TK_NEQ: return val1 != val2;
+      case TK_AND: return val1 && val2;
+      default: assert(0);
+    }
+  }
 }
 
 
@@ -119,7 +286,6 @@ word_t expr(char *e, bool *success) {
   }
 
   /* TODO: Insert codes to evaluate the expression. */
-  TODO();
+  return eval(0, nr_token-1);
 
-  return 0;
 }
