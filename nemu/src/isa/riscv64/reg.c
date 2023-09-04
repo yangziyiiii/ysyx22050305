@@ -24,28 +24,26 @@ const char *regs[] = {
 };
 
 void isa_reg_display() {
-  printf("General Register: \n");
-  int regs_num = ARRLEN(regs);
-  for (int i = 0; i < regs_num; ++i) {
-    printf("\t%-3s: "FMT_WORD"\t", regs[i], gpr(i));
-    if ((i+1)%4 == 0) printf("\n");
+  int i,j;
+  for(i=0;i<16;i++){
+    for(j=0;j<2;j++){
+      printf("%s\t= %-16lx\t", regs[i*2+j], cpu.gpr[i*2+j]);
+    }
+    printf("\n");
   }
-  printf("Special Register: \n");
-  printf("\t%-3s: "FMT_WORD"\t\n", "pc", cpu.pc);
 }
 
 word_t isa_reg_str2val(const char *s, bool *success) {
-  int Num = sizeof(regs)/sizeof(regs[0]);
-  if(strcmp(s, "$pc") == 0){
-    *success = true;
-    return cpu.pc;
-  }
-  for(int i = 0; i < Num; i++){
-    if(strcmp(s+1, regs[i]) == 0){
-      *success = true;
-      return gpr(i);
+  int i;
+  for(i=0;i<32;i++){
+    if(strcmp(s, regs[i]) == 0){
+      return cpu.gpr[i];
     }
   }
+  if(!strcmp(s, "pc")){
+    return cpu.pc;
+  }
   *success = false;
+  printf("no reg name or pc\n");
   return 0;
 }

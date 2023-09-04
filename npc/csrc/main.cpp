@@ -85,7 +85,7 @@ void exec_once() {
   tfp->dump(main_time);
   main_time ++;
 
-  //printf("pc: %lx\n",  top->pc);
+  // printf("pc: %lx\n",  top->pc);
   uint32_t i = top->inst;
 #ifdef CONFIG_ITRACE
   char inst[32];

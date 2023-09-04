@@ -22,6 +22,8 @@
 
 // this should be enough
 static char buf[65536] = {};
+static int  idx = 0;
+static int  depth = 0;
 static char code_buf[65536 + 128] = {}; // a little larger than `buf`
 static char *code_format =
 "#include <stdio.h>\n"
@@ -31,8 +33,39 @@ static char *code_format =
 "  return 0; "
 "}";
 
+static void gen(char c){
+  buf[idx++] = c;
+}
+
+static void gen_num(){
+  char num[32];
+  sprintf(num, "%d", rand()%1000);
+  strcpy(buf+idx, num); 
+  idx += strlen(num);
+}
+
+static void gen_rand_op(){
+  switch (rand()%4) {
+    case 0: buf[idx++] = '+'; break;
+    case 1: buf[idx++] = '-'; break;
+    case 2: buf[idx++] = '*'; break;
+    case 3: buf[idx++] = '/'; break;
+    default: break;
+  }
+}
+
 static void gen_rand_expr() {
-  buf[0] = '\0';
+  if(idx > 65536) assert(0);
+  depth++;
+  if(depth > 8) gen_num();
+  else{
+    switch (rand()%3) {
+      case 0: gen_num(); break;
+      case 1: gen('('); gen_rand_expr(); gen(')'); break;
+      default: gen_rand_expr(); gen_rand_op(); gen_rand_expr(); break;
+    }
+  }
+  buf[idx] = '\0';
 }
 
 int main(int argc, char *argv[]) {
@@ -44,6 +77,8 @@ int main(int argc, char *argv[]) {
   }
   int i;
   for (i = 0; i < loop; i ++) {
+    idx = 0;
+    depth = 0;
     gen_rand_expr();
 
     sprintf(code_buf, code_format, buf);

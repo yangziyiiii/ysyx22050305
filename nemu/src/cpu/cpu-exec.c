@@ -17,23 +17,25 @@
 #include <cpu/decode.h>
 #include <cpu/difftest.h>
 #include <locale.h>
-#include <ftrace.h>
 
-#define MAX_INST_TO_PRINT 100
+int difftest_watchpoint();
 
+/* The assembly code of instructions executed is only output to the screen
+ * when the number of instructions executed is less than this value.
+ * This is useful when you use the `si' command.
+ * You can modify this value as you want.
+ */
+#define MAX_INST_TO_PRINT 10
+#define IRINGBUF_LEN 16
 
-typedef struct{
-  int index;
-  char buf[16][128];
-}IringBuf;
-
-IringBuf iringbuf;
-
-
-CPU_state cpu = {};
+CPU_state cpu = {.csr[MSTATUS] = 0xa00001800};
 uint64_t g_nr_guest_inst = 0;
 static uint64_t g_timer = 0; // unit: us
 static bool g_print_step = false;
+#ifdef CONFIG_ITRACE
+  static char iringbuf[IRINGBUF_LEN][65];
+  static int idx = 0;
+#endif
 
 void device_update();
 
@@ -43,10 +45,13 @@ static void trace_and_difftest(Decode *_this, vaddr_t dnpc) {
 #endif
   if (g_print_step) { IFDEF(CONFIG_ITRACE, puts(_this->logbuf)); }
   IFDEF(CONFIG_DIFFTEST, difftest_step(_this->pc, dnpc));
+  //watch point difftest
+#ifdef CONFIG_WATCHPOINT
+  if(difftest_watchpoint()){
+    nemu_state.state = NEMU_STOP;
+  }
+#endif
 }
-
-
-
 
 static void exec_once(Decode *s, vaddr_t pc) {
   s->pc = pc;
@@ -69,39 +74,22 @@ static void exec_once(Decode *s, vaddr_t pc) {
   memset(p, ' ', space_len);
   p += space_len;
 
-
-#ifndef CONFIG_ISA_loongarch32r
   void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
   disassemble(p, s->logbuf + sizeof(s->logbuf) - p,
       MUXDEF(CONFIG_ISA_x86, s->snpc, s->pc), (uint8_t *)&s->isa.inst.val, ilen);
-#else
-  p[0] = '\0'; // the upstream llvm does not support loongarch32r
+  //printf("%s\n",s->logbuf);
+  strcpy(iringbuf[idx++], s->logbuf);
+  if(idx >= IRINGBUF_LEN)
+    idx = 0;
 #endif
-#endif
-
-
 }
 
 static void execute(uint64_t n) {
   Decode s;
   for (;n > 0; n --) {
     exec_once(&s, cpu.pc);
-    g_nr_guest_inst ++;//模拟器执行的指令总数
+    g_nr_guest_inst ++;
     trace_and_difftest(&s, cpu.pc);
-#ifdef CONFIG_IRINGBUF
-#ifdef CONFIG_ITRACE
-    if(iringbuf.index<16){
-      strcpy(iringbuf.buf[iringbuf.index],s.logbuf);
-    }
-    else{
-      for(int i=0; i<15; i++){
-        strcpy(iringbuf.buf[n],iringbuf.buf[n+1]);
-      }
-      strcpy(iringbuf.buf[15],s.logbuf);
-    }
-    iringbuf.index++;
-#endif
-#endif
     if (nemu_state.state != NEMU_RUNNING) break;
     IFDEF(CONFIG_DEVICE, device_update());
   }
@@ -119,21 +107,6 @@ static void statistic() {
 void assert_fail_msg() {
   isa_reg_display();
   statistic();
-#ifdef CONFIG_IRINGBUF
-  printf("iringbuf:\n");
-  if(iringbuf.index<16){
-    for(int p=0; p<iringbuf.index-1; p++) {
-      printf("\t%s \n",iringbuf.buf[p]);
-    }  
-		printf("  ----> %s\n",iringbuf.buf[iringbuf.index-1]);
-  }
-  else{
-    for(int p=0;p<15;p++) {
-      printf("\t%s \n",iringbuf.buf[p]);
-    } 
-		printf("  ----> %s \n",iringbuf.buf[15]);  
-  }
-#endif
 }
 
 /* Simulate how the CPU works. */
@@ -162,24 +135,15 @@ void cpu_exec(uint64_t n) {
            (nemu_state.halt_ret == 0 ? ANSI_FMT("HIT GOOD TRAP", ANSI_FG_GREEN) :
             ANSI_FMT("HIT BAD TRAP", ANSI_FG_RED))),
           nemu_state.halt_pc);
-#ifdef CONFIG_IRINGBUF
-  if(nemu_state.state == NEMU_ABORT){
-	  printf("iringbuf:\n");
-    if(iringbuf.index<16){
-		  for(int p=0; p<iringbuf.index-1; p++){
-        printf("\t%s \n",iringbuf.buf[p]);
+      #ifdef CONFIG_ITRACE
+      for(int i=0; i< IRINGBUF_LEN; i++){
+        if(i==idx-1)
+          printf("--> %s\n", iringbuf[i]);
+        else
+          printf("    %s\n", iringbuf[i]);
       }
-		printf("  ----> %s\n",iringbuf.buf[iringbuf.index-1]);	
-	  }
-    else{
-		  for(int p=0;p<15;p++){
-        printf("\t%s \n",iringbuf.buf[p]);
-      }
-		  printf("  ----> %s \n",iringbuf.buf[15]);  
-	  }
-	}
-#endif
-    // fall through
+      #endif
+      // fall through
     case NEMU_QUIT: statistic();
   }
 }

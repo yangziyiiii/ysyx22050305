@@ -32,8 +32,7 @@ typedef struct {
     char name[64];
     paddr_t start;    
     size_t size;        
-}Functab;             
-
+}Functab;              
 
 word_t expr(char *e, bool *success);
 

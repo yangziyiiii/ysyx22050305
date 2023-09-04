@@ -1,9 +1,10 @@
 TOPNAME = top
+INC_PATH ?=
 IMG ?=
 
 VERILATOR = verilator
 VERILATOR_CFLAGS += -MMD --build -cc  \
-				-O3 --x-assign fast --x-initial fast --noassert
+				-O3 --x-assign fast --x-initial fast --noassert -Wno-fatal --trace --timescale 1ps/1ps
 
 BUILD_DIR = ./build
 OBJ_DIR = $(BUILD_DIR)/obj_dir
@@ -23,7 +24,7 @@ CFLAGS  += $(INCFLAGS) -DTOP_NAME="\"V$(TOPNAME)\""
 LDFLAGS += -lSDL2 -lSDL2_image -lreadline
 LDFLAGS += $(shell llvm-config --cxxflags) -fPIE 
 LDFLAGS += $(shell llvm-config --libs)
-# LDFLAGS += $(NEMU_HOME)/build/riscv64-nemu-interpreter-so
+LDFLAGS += $(NEMU_HOME)/build/riscv64-nemu-interpreter-so
 LDFLAGS += -fsanitize=address -lasan 
 
 
@@ -37,11 +38,16 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 all: default
 
 run: $(BIN)
-	@$^
+	@echo IMG PATH : $(IMG)
+	@rm -rf *.bin
+	@cp $(IMG) ./image.bin
+	@$^ $(IMG)
 	$(call git_commit, "run RTL") # DO NOT REMOVE THIS LINE!!!
 
 sim: $(VSRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)
+	@cp $(IMG).bin ./image.bin
+	@cp $(IMG).elf ./image.elf
 	@$(VERILATOR) $(VERILATOR_CFLAGS) \
 		--trace \
 		--top-module $(TOPNAME) $^\
@@ -49,14 +55,12 @@ sim: $(VSRCS) $(CSRCS)
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
 	$(BUILD_DIR)/$(TOPNAME)
-	
-wave: sim
 	gtkwave wave.vcd
 
 clean:
 	rm -rf ./build
 	rm wave.vcd
 
-.PHONY: default all clean run sim wave
+.PHONY: default all clean run sim
 
 include ../Makefile

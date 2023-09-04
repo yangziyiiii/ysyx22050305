@@ -19,46 +19,32 @@
 #include <memory/paddr.h>
 
 void difftest_memcpy(paddr_t addr, void *buf, size_t n, bool direction) {
- 	if (direction == DIFFTEST_TO_REF){
-		paddr_t waddr = addr;
-	  for(size_t i = 0; i< n; i++){
-		  paddr_write(waddr++,1,*((uint8_t *)buf+i));
-      //paddr_write(addr++,1,*((uint8_t *)buf+i));
-	  }
-	}
-	else{
-		assert(0);
-	}
+  int i;
+  if(direction == DIFFTEST_TO_DUT){
+    word_t rdata[1];
+    for(i=0;i<n/4;i++){
+      *rdata = paddr_read(addr+i*4, 4);
+      memcpy(buf+i*4, (void*)rdata, 4);
+    }
+  }else{
+    for(i=0;i<n/4;i++){
+      paddr_write(addr+i*4, 4, *((uint32_t*)buf + i));
+    }
+  }
 }
 
-struct  diff_CPU_state{
-	word_t gpr[32];
-	word_t pc;
-};
-
 void difftest_regcpy(void *dut, bool direction) {
-  // uint64_t *dut_t=(uint64_t *)dut;
-  // if (direction == DIFFTEST_TO_REF) {
-  //   for(int i=0;i<32;i++) {
-  //     cpu.gpr[i]=*(dut_t+i);
-  //   }
-  // } else {
-  //     for(int i=0;i<32;i++)
-  //       *(dut_t+i)=cpu.gpr[i];
-  // }
-  if(direction == DIFFTEST_TO_REF){
-    struct diff_CPU_state* ctx = (struct diff_CPU_state *)dut;
-    for (int i = 0; i < 32;i++){
-  	cpu.gpr[i] = ctx->gpr[i];
+  int i; 
+  CPU_state *dut_reg = dut;
+  if(direction == DIFFTEST_TO_DUT){
+    dut_reg->pc = cpu.pc;
+    for(i=0;i<32;i++){
+      dut_reg->gpr[i] = cpu.gpr[i];
     }
-    	cpu.pc = ctx->pc;
   }else{
-    if(direction == DIFFTEST_TO_DUT){
-      struct diff_CPU_state* ctx = (struct diff_CPU_state *)dut;
-      for (int i = 0; i < 32;i++){
-  	ctx->gpr[i] = cpu.gpr[i];
-      }
-    	ctx->pc = cpu.pc;
+    cpu.pc = dut_reg->pc;
+    for(i=0;i<32;i++){
+      cpu.gpr[i] = dut_reg->gpr[i];
     }
   }
 }
@@ -68,7 +54,7 @@ void difftest_exec(uint64_t n) {
 }
 
 void difftest_raise_intr(word_t NO) {
-  isa_raise_intr(NO,cpu.pc);
+  assert(0);
 }
 
 void difftest_init(int port) {

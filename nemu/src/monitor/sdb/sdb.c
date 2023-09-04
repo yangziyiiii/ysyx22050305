@@ -55,13 +55,13 @@ static int cmd_q(char *args) {
 
 static int cmd_help(char *args);
 
-static int cmd_si(char *args){
-  char *arg = strtok(args, "");
-  if(arg == NULL){
+static int cmd_si(char *args) {
+  char *arg = strtok(args, " ");
+  if (arg == NULL) {
     cpu_exec(1);
     return 0;
-  }else{
-    int n=atoi(arg);
+  }else {
+    int n = atoi(arg);
     cpu_exec(n);
     return 0;
   }
@@ -109,7 +109,6 @@ static int cmd_x(char *args) {
   return 0;
 }
 
-
 static int cmd_p(char *args){
   bool success = true;
   word_t value = expr(args, &success);
@@ -130,21 +129,22 @@ static int cmd_d(char *args){
   return 0;
 }
 
-// static int cmd_detach(char *args){
-//   #ifdef CONFIG_DIFFTEST
-//     extern void detach();
-//     detach();
-//   #endif
-//   return 0;
-// }
+static int cmd_detach(char *args){
+  #ifdef CONFIG_DIFFTEST
+    extern void detach();
+    detach();
+  #endif
+  return 0;
+}
 
-// static int cmd_attach(char *args){
-//   #ifdef CONFIG_DIFFTEST
-//     extern void attach();
-//     attach();
-//   #endif
-//   return 0;
-// }
+static int cmd_attach(char *args){
+  #ifdef CONFIG_DIFFTEST
+    extern void attach();
+    attach();
+  #endif
+  return 0;
+}
+
 
 static struct {
   const char *name;
@@ -160,9 +160,8 @@ static struct {
   { "p", "Expression evaluation", cmd_p },
   { "w", "Set up watch points", cmd_w },
   { "d", "Delete watch points", cmd_d },
-  // { "detach", "Quit Difftest", cmd_detach },
-  // { "attach", "Enter Difftest", cmd_attach },
-
+  { "detach", "Quit Difftest", cmd_detach },
+  { "attach", "Enter Difftest", cmd_attach },
   /* TODO: Add more commands */
 
 };

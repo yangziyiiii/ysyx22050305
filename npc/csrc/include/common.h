@@ -2,10 +2,10 @@
 #define __COMMON_H__
 
 #define CONFIG_ITRACE
-//#define CONFIG_MTRACE
-//#define CONFIG_FTRACE
-// #define CONFIG_DIFFTEST
-//#define BATCH_MODE
+// #define CONFIG_MTRACE
+// #define CONFIG_FTRACE
+#define CONFIG_DIFFTEST
+#define BATCH_MODE
 
 #include <stdint.h>
 #include <inttypes.h>
