@@ -75,7 +75,7 @@ wire inst_lw    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
                 & !func3[2]  &  func3[1]  & !func3[0];
 wire inst_ld    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
                 & !func3[2]  &  func3[1]  &  func3[0];
-wire inst_lbu   = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
+wire inst_lbu   = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2] & opcode[1] & opcode[0] 
                 &  func3[2]  & !func3[1]  & !func3[0];
 wire inst_lhu   = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
                 &  func3[2]  & !func3[1]  &  func3[0];

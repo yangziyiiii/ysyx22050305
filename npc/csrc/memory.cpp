@@ -3,6 +3,8 @@
 #include "svdpi.h"
 #include "Vtop__Dpi.h"
 
+#include "time.h"
+
 #define CONFIG_MSIZE 0x8000000
 #define CONFIG_MBASE 0x80000000
 static uint8_t pmem[CONFIG_MSIZE] __attribute((aligned(4096))) = {};
@@ -41,15 +43,18 @@ extern "C" void pmem_read(long long raddr, long long *rdata, char ren) {
     uint32_t us_lo;
     uint32_t us_hi;
     if(raddr == RTC_ADDR){
+        
+        // time_t currentTime;
+        // uint64_t us = currentTime;
         uint64_t us = get_time();
         us_lo = (uint32_t)us;
         us_hi = us >> 32;
         *rdata = us_lo;
-        //printf("lo paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
+        printf("lo paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
         return;
     }else if(raddr == RTC_ADDR+4){
         *rdata = us_hi;
-        //printf("hi paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
+        printf("hi paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
         return;
     }
 
@@ -80,7 +85,7 @@ extern "C" void pmem_write(long long waddr, long long wdata, char wmask) {
     out_of_bound(waddr);
     uint8_t* waddr_p = guest_to_host(waddr);
 #ifdef CONFIG_MTRACE
-    //printf("paddr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
+    printf("paddr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
 #endif
     
     switch ((uint8_t)wmask) {  
