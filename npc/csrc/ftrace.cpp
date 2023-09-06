@@ -89,17 +89,21 @@ void ftrace(uint32_t inst){
   if(op == 0x67 && rs1 == 1 && rd == 0){
     for(int i=0; i<functab_len; i++){
       if(npc_cpu.pc >= functab[i].start && npc_cpu.pc < functab[i].start+functab[i].size){
-        printf("%*cret: %s pc: %lx\n", n-1, ' ', functab[i].name, npc_cpu.pc);
-        n--;
-        break;
+        if(strcmp(functab[i].name, "putch") && strcmp(functab[i].name, "printf")){
+          printf("%*cret: %s pc: %lx\n", n-1, ' ', functab[i].name, npc_cpu.pc);
+          n--;
+          break;
+        }
       }
     }
   }else if((op == 0x67 || op == 0x6f) && rd == 1){
     for(int i=0; i<functab_len; i++){
       if(npc_cpu.pc >= functab[i].start && npc_cpu.pc < functab[i].start+functab[i].size){
-        n++;
-        printf("%*ccall: %s pc: %lx\n", n, ' ', functab[i].name, npc_cpu.pc);
-        break;
+        if(strcmp(functab[i].name, "putch") && strcmp(functab[i].name, "printf")){
+          n++;
+          printf("%*ccall: %s pc: %lx\n", n, ' ', functab[i].name, npc_cpu.pc);
+          break;
+        }
       }
     }
   }

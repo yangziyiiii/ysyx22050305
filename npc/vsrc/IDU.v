@@ -7,7 +7,7 @@ module IDU #(WIDTH = 64)(
   
   output wire               br_taken,
   output wire [5 :0]        inst_type,
-  output wire [5 :0]        ld_type,
+  output wire [6 :0]        ld_type,
   output wire [3 :0]        st_type,
   output wire               inst_32bit,
 
@@ -18,7 +18,15 @@ module IDU #(WIDTH = 64)(
   
   output wire [16: 0]       alu_op,
   output wire [WIDTH-1:0]   op1,
-  output wire [WIDTH-1:0]   op2
+  output wire [WIDTH-1:0]   op2,
+
+  output wire               csr_re,
+  output wire               csr_we,
+  output wire               csr_set,
+  output wire               ex,
+  output wire               ex_ret,
+  output wire [62:0]        ecode
+
 );
 
 wire [6 :0]     opcode;
@@ -48,7 +56,6 @@ assign imm[30:20] = inst_type[1] ? inst[30:20] : {11{inst[31]}};
 assign imm[WIDTH-1:31] = {(WIDTH-31){inst[31]}};
                     
 
-
 wire inst_lui   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] &  opcode[2];
 wire inst_auipc = !opcode[6] & !opcode[5] &  opcode[4] & !opcode[3] &  opcode[2];
 wire inst_jal   =  opcode[6] &  opcode[5] & !opcode[4] &  opcode[3] &  opcode[2];
@@ -67,18 +74,13 @@ wire inst_bltu  =  opcode[6] &  opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
 wire inst_bgeu  =  opcode[6] &  opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
                 &  func3[2]  &  func3[1]  &  func3[0];
 
-wire inst_lb    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2] & opcode[1] & opcode[0]
-                & !func3[2]  & !func3[1]  & !func3[0];
-wire inst_lh    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  & !func3[1]  &  func3[0];
-wire inst_lw    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  &  func3[1]  & !func3[0];
-wire inst_ld    = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  &  func3[1]  &  func3[0];
-wire inst_lbu   = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2] & opcode[1] & opcode[0] 
-                &  func3[2]  & !func3[1]  & !func3[0];
-wire inst_lhu   = !opcode[6] & !opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  & !func3[1]  &  func3[0];
+wire inst_lb    = (opcode == 7'b0000011) & (func3 == 3'b000);
+wire inst_lh    = (opcode == 7'b0000011) & (func3 == 3'b001);
+wire inst_lw    = (opcode == 7'b0000011) & (func3 == 3'b010);
+wire inst_ld    = (opcode == 7'b0000011) & (func3 == 3'b011);
+wire inst_lbu   = (opcode == 7'b0000011) & (func3 == 3'b100);
+wire inst_lhu   = (opcode == 7'b0000011) & (func3 == 3'b101);
+wire inst_lwu   = (opcode == 7'b0000011) & (func3 == 3'b110);
                 
 wire inst_sb    = !opcode[6] &  opcode[5] & !opcode[4] & !opcode[3] & !opcode[2]
                 & !func3[2]  & !func3[1]  & !func3[0];
@@ -109,26 +111,22 @@ wire inst_srli  = !opcode[6] & !opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
 wire inst_srai  = !opcode[6] & !opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
                 &  func3[2]  & !func3[1]  &  func3[0]  & (func7[6:1] == 6'b010000);
 
-wire inst_add   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  & !func3[1]  & !func3[0]  & (func7 == 7'b0);
-wire inst_sub   = !opcode[2] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  & !func3[1]  & !func3[0]  & (func7 == 7'b0100000);
-wire inst_sll   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  & !func3[1]  &  func3[0]  & (func7 == 7'b0);
-wire inst_slt   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  &  func3[1]  & !func3[0]  & (func7 == 7'b0);
-wire inst_sltu  = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                & !func3[2]  &  func3[1]  &  func3[0]  & (func7 == 7'b0);
-wire inst_xor   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  & !func3[1]  & !func3[0]  & (func7 == 7'b0);
-wire inst_srl   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  & !func3[1]  &  func3[0]  & (func7 == 7'b0);
-wire inst_sra   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  & !func3[1]  &  func3[0]  & (func7 == 7'b0100000);
-wire inst_or    = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  &  func3[1]  & !func3[0]  & (func7 == 7'b0);
-wire inst_and   = !opcode[6] &  opcode[5] &  opcode[4] & !opcode[3] & !opcode[2]
-                &  func3[2]  &  func3[1]  &  func3[0]  & (func7 == 7'b0);
+wire inst_add   = (opcode == 7'b0110011) & (func3 == 3'b000) & (func7 == 7'b0);
+wire inst_sub   = (opcode == 7'b0110011) & (func3 == 3'b000) & (func7 == 7'b0100000);
+wire inst_sll   = (opcode == 7'b0110011) & (func3 == 3'b001) & (func7 == 7'b0);
+wire inst_slt   = (opcode == 7'b0110011) & (func3 == 3'b010) & (func7 == 7'b0);
+wire inst_sltu  = (opcode == 7'b0110011) & (func3 == 3'b011) & (func7 == 7'b0);
+wire inst_xor   = (opcode == 7'b0110011) & (func3 == 3'b100) & (func7 == 7'b0);
+wire inst_srl   = (opcode == 7'b0110011) & (func3 == 3'b101) & (func7 == 7'b0);
+wire inst_sra   = (opcode == 7'b0110011) & (func3 == 3'b101) & (func7 == 7'b0100000);
+wire inst_or    = (opcode == 7'b0110011) & (func3 == 3'b110) & (func7 == 7'b0);
+wire inst_and   = (opcode == 7'b0110011) & (func3 == 3'b111) & (func7 == 7'b0);
+
+wire inst_ecall = (inst == 32'b0000000_00000_00000_000_00000_1110011);
+wire inst_ebrea = (inst == 32'b0000000_00001_00000_000_00000_1110011);
+wire inst_mret  = (inst == 32'b0011000_00010_00000_000_00000_1110011);
+wire inst_csrrw = (opcode == 7'b1110011) & (func3 == 3'b001);
+wire inst_csrrs = (opcode == 7'b1110011) & (func3 == 3'b010);
 
 wire inst_addiw = (opcode == 7'b0011011) & (func3 == 3'b000);
 wire inst_slliw = (opcode == 7'b0011011) & (func3 == 3'b001);
@@ -143,22 +141,27 @@ wire inst_sraw  = (opcode == 7'b0111011) & (func3 == 3'b101) & (func7 == 7'b0100
 wire inst_mul   = (opcode == 7'b0110011) & (func3 == 3'b000) & (func7 == 7'b1);
 wire inst_div   = (opcode == 7'b0110011) & (func3 == 3'b100) & (func7 == 7'b1);
 wire inst_divu  = (opcode == 7'b0110011) & (func3 == 3'b101) & (func7 == 7'b1);
+wire inst_rem   = (opcode == 7'b0110011) & (func3 == 3'b110) & (func7 == 7'b1);
 wire inst_remu  = (opcode == 7'b0110011) & (func3 == 3'b111) & (func7 == 7'b1);
 wire inst_mulw  = (opcode == 7'b0111011) & (func3 == 3'b000) & (func7 == 7'b1);
 wire inst_divw  = (opcode == 7'b0111011) & (func3 == 3'b100) & (func7 == 7'b1);
+wire inst_divuw = (opcode == 7'b0111011) & (func3 == 3'b101) & (func7 == 7'b1);
 wire inst_remw  = (opcode == 7'b0111011) & (func3 == 3'b110) & (func7 == 7'b1);
+wire inst_remuw = (opcode == 7'b0111011) & (func3 == 3'b111) & (func7 == 7'b1);
 
 //R-type
-assign inst_type[5] = inst_add | inst_sub | inst_sll | inst_slt | inst_sltu | 
-                      inst_xor | inst_srl | inst_sra | inst_or  | inst_and  |
-                      inst_addw | inst_subw | inst_sllw | inst_srlw | inst_sraw |
-                      inst_mul | inst_div | inst_divu | inst_remu | inst_mulw | inst_divw | inst_remw;
+assign inst_type[5] = inst_add | inst_sub | inst_sll | inst_slt | inst_sltu 
+                    | inst_xor | inst_srl | inst_sra | inst_or  | inst_and 
+                    | inst_addw | inst_subw | inst_sllw | inst_srlw | inst_sraw 
+                    | inst_mul | inst_div | inst_divu | inst_rem | inst_remu 
+                    | inst_mulw | inst_divw | inst_divuw | inst_remw | inst_remuw;
 //I-type
 assign inst_type[4] = inst_jalr 
-                    | inst_lb | inst_lh | inst_lw | inst_ld | inst_lbu | inst_lhu
+                    | inst_lb | inst_lh | inst_lw | inst_ld | inst_lbu | inst_lhu | inst_lwu
                     | inst_addi | inst_slti | | inst_sltiu | inst_xori | inst_ori | inst_andi
                     | inst_slli | inst_srli | inst_srai 
-                    | inst_addiw | inst_slliw | inst_srliw | inst_sraiw; 
+                    | inst_addiw | inst_slliw | inst_srliw | inst_sraiw
+                    | inst_csrrs | inst_csrrw;
 //S-type
 assign inst_type[3] = inst_sb | inst_sh | inst_sw | inst_sd; 
 //B-type
@@ -169,14 +172,28 @@ assign inst_type[1] = inst_lui | inst_auipc;
 assign inst_type[0] = inst_jal; 
 
 //ld/st
-assign ld_type = {inst_lb, inst_lh, inst_lw, inst_ld, inst_lbu, inst_lhu};
+assign ld_type = {inst_lb, inst_lh, inst_lw, inst_ld, inst_lbu, inst_lhu, inst_lwu};
 assign st_type = {inst_sb, inst_sh, inst_sw, inst_sd};
+
+//csr and ex
+assign csr_re = inst_csrrw | inst_csrrs;
+assign csr_we = inst_csrrw | inst_csrrs;
+assign csr_set = inst_csrrs;
+
+wire   ine = (inst_type == 0) && !inst_ecall && !inst_ebrea && !inst_mret;
+assign ex = inst_ecall | inst_ebrea | ine;
+assign ex_ret = inst_mret;
+assign ecode = inst_ecall? 11 : //Environment call from M-mode
+               inst_ebrea? 3  : //Breakpoint
+               ine ?       2  : //Illegal instruction
+               64;
 
 //32bit inst
 assign inst_32bit = | inst_addiw | inst_slliw | inst_srliw | inst_sraiw 
                     | inst_addw | inst_subw | inst_sllw | inst_srlw | inst_sraw 
-                    | inst_mulw | inst_divw | inst_remw;
+                    | inst_mulw | inst_divw | inst_divuw | inst_remw | inst_remuw;
 
+//Br Unit
 wire rj_eq_rd = (rs1_data == rs2_data);
 wire rj_lt_rd = ($signed(rs1_data) < $signed(rs2_data));
 wire rj_ltu_rd = (rs1_data < rs2_data);
@@ -190,7 +207,7 @@ assign br_taken  = inst_beq  &&  rj_eq_rd
 
 
 assign alu_op[0] = inst_add | inst_addi | inst_auipc | inst_jal | inst_jalr 
-                  | inst_lb | inst_lh | inst_lw | inst_ld | inst_lbu | inst_lhu 
+                  | inst_lb | inst_lh | inst_lw | inst_ld | inst_lbu | inst_lhu | inst_lwu
                   | inst_type[3] | inst_type[2]
                   | inst_addw | inst_addiw;
 assign alu_op[1] = inst_sub | inst_subw;
@@ -204,11 +221,11 @@ assign alu_op[8] = inst_slli | inst_sll | inst_sllw | inst_slliw;
 assign alu_op[9] = inst_srli | inst_srl | inst_srliw | inst_srlw;
 assign alu_op[10] = inst_srai | inst_sra | inst_sraiw | inst_sraw;
 assign alu_op[11] = inst_lui;
-assign alu_op[12] = inst_mulw | inst_mul;
-assign alu_op[13] = inst_divw | inst_div;
-assign alu_op[14] = inst_divu;
-assign alu_op[15] = inst_remw;
-assign alu_op[16] = inst_remu;
+assign alu_op[12] = inst_mul | inst_mulw;
+assign alu_op[13] = inst_div | inst_divw;
+assign alu_op[14] = inst_divu | inst_divuw;
+assign alu_op[15] = inst_remw | inst_rem;
+assign alu_op[16] = inst_remu | inst_remuw;
 
 assign rd_wen   = inst_type[5] | inst_type[4] | inst_type[1] | inst_type[0];
 

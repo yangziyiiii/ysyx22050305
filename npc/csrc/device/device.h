@@ -5,6 +5,7 @@
 
 #define DEVICE_BASE 0xa0000000
 #define MMIO_BASE 0xa0000000
+#define TIMER_HZ 60
 
 #define SERIAL_PORT     (DEVICE_BASE + 0x00003f8)
 #define KBD_ADDR        (DEVICE_BASE + 0x0000060)
@@ -16,5 +17,6 @@
 #define AUDIO_SBUF_ADDR (MMIO_BASE   + 0x1200000)
 
 extern uint64_t get_time();
+extern void vga_update_screen();
 
 #endif

@@ -3,21 +3,26 @@
 #include "svdpi.h"
 #include "Vtop__Dpi.h"
 
-#include "time.h"
-
 #define CONFIG_MSIZE 0x8000000
 #define CONFIG_MBASE 0x80000000
 static uint8_t pmem[CONFIG_MSIZE] __attribute((aligned(4096))) = {};
+extern uint32_t *vgactl_port_base;
+extern void *vmem;
+uint32_t i8042_key();
+uint32_t screen_size();
 
+void difftest_skip_ref();
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
 paddr_t host_to_guest(uint8_t *haddr) { return haddr - pmem + CONFIG_MBASE; }
 
-static void out_of_bound(paddr_t addr) {
+static bool out_of_bound(paddr_t addr) {
     if(addr >= CONFIG_MBASE && addr < CONFIG_MBASE+CONFIG_MSIZE)
-        return;
-    else
-        printf("addr out of bound: %lx\n", addr);
-        assert(0);
+        return 0;
+    else{
+        printf("addr out of bound: %lx at pc: %lx\n", addr, npc_cpu.pc);
+        npc_state.state = NPC_ABORT;
+        return 1;
+    }
 }
 
 void init_mem() {
@@ -30,7 +35,7 @@ void init_mem() {
 }
 
 extern "C" void inst_fetch(long long inst_addr, int * inst){
-    out_of_bound(inst_addr);
+    if(out_of_bound(inst_addr)) return;
     *inst = *(uint32_t *)guest_to_host(inst_addr & ~0x3ull);
 }
 
@@ -39,26 +44,52 @@ extern "C" void pmem_read(long long raddr, long long *rdata, char ren) {
     if((uint8_t)ren == 0)
         return;
     
-    //timer device
+    //device
     uint32_t us_lo;
     uint32_t us_hi;
     if(raddr == RTC_ADDR){
-        
-        // time_t currentTime;
-        // uint64_t us = currentTime;
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
         uint64_t us = get_time();
+        #ifdef CONFIG_DTRACE
+            printf("IO_read rtc: %ld\n", us);
+        #endif
         us_lo = (uint32_t)us;
         us_hi = us >> 32;
         *rdata = us_lo;
-        printf("lo paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
+        //printf("lo paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
         return;
     }else if(raddr == RTC_ADDR+4){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
         *rdata = us_hi;
-        printf("hi paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
+        //printf("hi paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
+        return;
+    }else if(raddr == VGACTL_ADDR){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        //printf("IO_read vgabase[0]: %d\n", vgactl_port_base[0]);
+        *rdata =  vgactl_port_base[0];
+        return;
+    }else if (raddr == VGACTL_ADDR+4){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        //printf("IO_read vgabase[1]: %d\n", vgactl_port_base[1]);
+        *rdata = vgactl_port_base[1];
+        return;
+    }else if(raddr == KBD_ADDR){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        *rdata = i8042_key();
         return;
     }
 
-    out_of_bound(raddr);
+    if(out_of_bound(raddr)) return;
     *rdata = *(uint64_t *)guest_to_host(raddr & ~0x7ull); 
 #ifdef CONFIG_MTRACE
     printf("paddr:%llx read:%llx ren:%x\n", raddr, *rdata, ren);
@@ -74,18 +105,35 @@ extern "C" void pmem_write(long long waddr, long long wdata, char wmask) {
     if((uint8_t)wmask ==0)
         return;
 
-    //uart device
+    //device
     if(waddr == SERIAL_PORT){
-        if(n%2==0)
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        if(n%3==0)
             putchar((char)wdata);
         n++;
         return;
+    }else if(waddr == VGACTL_ADDR+4){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        vgactl_port_base[1] = (uint32_t)wdata;
+        //printf("IO_write vgabase[1]: %d\n", vgactl_port_base[1]);
+        return;
+    }else if(waddr >= FB_ADDR && waddr < FB_ADDR + screen_size()){
+        #ifdef CONFIG_DIFFTEST
+            difftest_skip_ref();
+        #endif
+        *(uint32_t *)((uint8_t *)vmem + waddr - FB_ADDR) = wdata;
+        //printf("IO_write FB addr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
+        return;
     }
     
-    out_of_bound(waddr);
+    if(out_of_bound(waddr)) return;
     uint8_t* waddr_p = guest_to_host(waddr);
 #ifdef CONFIG_MTRACE
-    printf("paddr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
+    //printf("paddr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
 #endif
     
     switch ((uint8_t)wmask) {  

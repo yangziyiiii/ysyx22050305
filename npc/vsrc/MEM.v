@@ -2,7 +2,7 @@
 module MEM(
     input wire  clk,
     input wire  [63:0] raddr,
-    input wire  [ 5:0] ld_type,
+    input wire  [ 6:0] ld_type,
     output wire [63:0] rdata,
 
     input wire [ 3:0] st_type,
@@ -14,7 +14,7 @@ module MEM(
     import "DPI-C" function void pmem_write(
       input longint waddr, input longint wdata, input byte wmask);
     
-    wire [ 7:0] ren = {8{ld_type[5] | ld_type[4] | ld_type[3] | ld_type[2] | ld_type[1] | ld_type[0]}} ;
+    wire [ 7:0] ren = {8{ld_type != 0}} ;
     wire [63:0] pmem_rdata;
     wire [ 7:0] rmask;
 
@@ -47,11 +47,12 @@ module MEM(
                           {16{rmask[0]}} & pmem_rdata[15: 0] ;
     wire [31:0] lw_data = {32{rmask[4]}} & pmem_rdata[63:32] |
                           {32{rmask[0]}} & pmem_rdata[31: 0] ;
-    assign rdata =  {64{ld_type[5]}} & {{56{lb_data[ 7]}}, lb_data} |
-                    {64{ld_type[4]}} & {{48{lh_data[15]}}, lh_data} |
-                    {64{ld_type[3]}} & {{32{lw_data[31]}}, lw_data} |
-                    {64{ld_type[2]}} & pmem_rdata                   |
-                    {64{ld_type[1]}} & {56'b0, lb_data}             |
-                    {64{ld_type[0]}} & {48'b0, lh_data}             ;
+    assign rdata =  {64{ld_type[6]}} & {{56{lb_data[ 7]}}, lb_data} |
+                    {64{ld_type[5]}} & {{48{lh_data[15]}}, lh_data} |
+                    {64{ld_type[4]}} & {{32{lw_data[31]}}, lw_data} |
+                    {64{ld_type[3]}} & pmem_rdata                   |
+                    {64{ld_type[2]}} & {56'b0, lb_data}             |
+                    {64{ld_type[1]}} & {48'b0, lh_data}             |
+                    {64{ld_type[0]}} & {32'b0, lw_data}             ;
                           
 endmodule

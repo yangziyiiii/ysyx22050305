@@ -5,7 +5,13 @@ module IFU #(WIDTH = 64)(
     input wire rst,
     
     input wire  br_taken,
-    input wire  [WIDTH-1:0] br_target,//分支预测的地址
+    input wire  [WIDTH-1:0] br_target,
+
+    input wire  ex,
+    input wire  [WIDTH-1:0] ex_entry,
+    input wire  ex_ret,
+    input wire  [WIDTH-1:0] epc,
+
     output wire [WIDTH-1:0] nextpc,
     output reg  [WIDTH-1:0] pc
 );
@@ -16,6 +22,9 @@ module IFU #(WIDTH = 64)(
             pc <= nextpc;
     end
     //Reg #(WIDTH, `PC_ENTRY-4) pc_r (clk, rst, nextpc, pc, 1'b1);
-    assign nextpc = br_taken? br_target : pc + 4;
+    assign nextpc = ex? ex_entry :
+                    ex_ret? epc :
+                    br_taken? br_target : 
+                    pc + 4;
 
 endmodule

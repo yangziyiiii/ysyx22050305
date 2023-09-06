@@ -25,12 +25,14 @@ void init_disasm(const char *triple);
   void difftest_step(vaddr_t pc, vaddr_t npc);
   void init_difftest(char *ref_so_file, long img_size, int port);
 #endif
+void init_device();
+void device_update();
 
 static VerilatedContext* contextp;
 static Vtop* top;
 static VerilatedVcdC* tfp;
 static vluint64_t main_time = 0;
-static const vluint64_t sim_time = 10000000; //max sim time
+static const vluint64_t sim_time = 1000000000; //max sim time
 static long cpu_cycle = 0;
 
 extern uint64_t *cpu_gpr;
@@ -67,12 +69,16 @@ void cpu_init() {
   top -> clk = 0;
   top -> rst = 1;
   top -> eval();
+  #ifdef WAVE
   tfp->dump(main_time);
+  #endif
   main_time ++;
   top -> clk = 1;
   top -> rst = 1;
   top -> eval();
+  #ifdef WAVE
   tfp->dump(main_time);
+  #endif
   main_time ++;
   top -> rst = 0;
   top -> eval();
@@ -82,7 +88,9 @@ void cpu_init() {
 void exec_once() {
   top->clk = !top->clk;
   top->eval();
+  #ifdef WAVE
   tfp->dump(main_time);
+  #endif
   main_time ++;
 
   // printf("pc: %lx\n",  top->pc);
@@ -99,7 +107,9 @@ void exec_once() {
   
   top->clk = !top->clk;
   top->eval(); 
+  #ifdef WAVE
 	tfp->dump(main_time);
+  #endif
   main_time ++;
 
   npc_cpu.pc = top->pc;
@@ -127,9 +137,9 @@ void cpu_exec(uint64_t n) {
       #ifdef CONFIG_DIFFTEST
         difftest_step(npc_cpu.pc, npc_cpu.pc+4);
       #endif
-
+      device_update();
       if(npc_state.state != NPC_RUNNING) break;
-      if(main_time > sim_time || npc_state.halt_ret){
+      if(/*main_time > sim_time || */npc_state.halt_ret){
         npc_state.state = NPC_END;
         break;
       }
@@ -150,27 +160,13 @@ void cpu_exec(uint64_t n) {
         printf("\033[0m\033[1;31m%s\n\033[0m","Hit bad trap!");
       }
 
-      // #ifdef CONFIG_ITRACE
-      // for(int i=0; i< 16; i++){
-      //   if(i==idx-1)
-      //     printf("--> %s\n", iringbuf[i]);
-      //   else
-      //     printf("    %s\n", iringbuf[i]);
-      // }
-      // #endif
       #ifdef CONFIG_ITRACE
-        if(idx<16){
-          for(int i=0;i<idx-1;i++){
-            printf("\t%s \n",iringbuf[i]);
-          }
-          printf("  ----> %s\n",iringbuf[idx-1]);
-        }
-        else{
-		      for(int p=0;p<15;p++){
-            printf("\t%s \n",iringbuf[p]);
-          }
-		      printf("  ----> %s \n",iringbuf[15]);  
-	      }
+      for(int i=0; i< 16; i++){
+        if(i==idx-1)
+          printf("--> %s\n", iringbuf[i]);
+        else
+          printf("    %s\n", iringbuf[i]);
+      }
       #endif
       // fall through
     case NPC_QUIT: return;
@@ -182,17 +178,20 @@ int main(int argc, char** argv) {
   contextp->commandArgs(argc, argv);
   top = new Vtop{contextp};
   //VCD波形设置
+  #ifdef WAVE
   Verilated::traceEverOn(true);
   tfp = new VerilatedVcdC;
   top->trace(tfp, 0);
   tfp->open("wave.vcd");
+  #endif
 
   //initial
   init_mem();
-  load_image();
+  long img_size = load_image();
   cpu_init();
   init_sdb();
   init_disasm("riscv64-pc-linux-gnu");
+  init_device();
 
   //ftrace
   #ifdef CONFIG_FTRACE
@@ -200,19 +199,20 @@ int main(int argc, char** argv) {
   elf_load();
   #endif
 
-  // difftest
+  //difftest
   #ifdef CONFIG_DIFFTEST
       char diff_so_file[100] = "/home/yzy/ysyx-workbench/nemu/build/riscv64-nemu-interpreter-so";
-      long img_size = 4096; //
       int difftest_port = 1234;
       init_difftest(diff_so_file, img_size, difftest_port);
   #endif
   
   sdb_mainloop();
   // clean
+  #ifdef WAVE
   tfp->close();
-  delete top;
   delete tfp;
-  exit(0);
+  #endif
+  delete top;
+  printf("END\n");
   return 0;
 }

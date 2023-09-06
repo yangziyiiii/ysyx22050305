@@ -38,9 +38,12 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 all: default
 
 run: $(BIN)
+	@rm -rf $(OBJ_DIR)
 	@echo IMG PATH : $(IMG)
 	@rm -rf *.bin
-	@cp $(IMG) ./image.bin
+	@rm -rf *.elf
+	@cp $(IMG).bin ./image.bin
+	@cp $(IMG).elf ./image.elf
 	@$^ $(IMG)
 	$(call git_commit, "run RTL") # DO NOT REMOVE THIS LINE!!!
 
@@ -59,8 +62,10 @@ sim: $(VSRCS) $(CSRCS)
 
 clean:
 	rm -rf ./build
+
+clean-wave:
 	rm wave.vcd
 
-.PHONY: default all clean run sim
+.PHONY: default all clean run sim clean-wave
 
 include ../Makefile

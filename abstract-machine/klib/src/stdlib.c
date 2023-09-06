@@ -1,7 +1,6 @@
 #include <am.h>
 #include <klib.h>
 #include <klib-macros.h>
-#include <stdio.h>
 
 #if !defined(__ISA_NATIVE__) || defined(__NATIVE_USE_KLIB__)
 static unsigned long int next = 1;
@@ -30,28 +29,23 @@ int atoi(const char* nptr) {
   return x;
 }
 
-char *addr_n = NULL;
+static long long _free = 1; //if _free=0, then _free = 0x2020202725242527
+
 void *malloc(size_t size) {
   // On native, malloc() will be called during initializaion of C runtime.
   // Therefore do not call panic() here, else it will yield a dead recursion:
   //   panic() -> putchar() -> (glibc) -> malloc() -> panic()
-// #if !(defined(__ISA_NATIVE__) && defined(__NATIVE_USE_KLIB__))
-//   panic("Not implemented");
-// #endif
-//   return NULL;
-
-  if(addr_n == NULL){
-    addr_n = (void *)ROUNDUP(heap.start, 8);
+  //printf("size: %d\n", size);
+  if(_free == 1){
+    //printf("ok\n");
+    _free = ROUNDUP(heap.start, 16); 
   }
-  size  = (size_t)ROUNDUP(size, 8);
-  char *addr_c = addr_n;
-  addr_n += size;
-  assert((uintptr_t)heap.start <= (uintptr_t)addr_n && (uintptr_t)addr_n < (uintptr_t)heap.end);
-  for (uint64_t *p = (uint64_t *)addr_c; p != (uint64_t *)addr_n; p ++) {
-    *p = 0;
-  }
-  return addr_c;
+  //printf("_free: %lx\n", _free);
 
+  size = ROUNDUP(size, 16);
+  _free += size;
+
+  return (void *)_free - size;
 }
 
 void free(void *ptr) {
