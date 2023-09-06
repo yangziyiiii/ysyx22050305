@@ -2,6 +2,7 @@
 #define __NDL_H__
 
 #include <stdint.h>
+#include <assert.h>
 
 #ifdef __cplusplus
 extern "C" {
