@@ -58,7 +58,7 @@ module CSR (
     reg [63:0] mstatus; //warning
     always @(posedge clk) begin
         if (rst)
-            mstatus <= 64'h0;
+            mstatus <= 64'ha00001800;
     end
 
     assign ex_entry = (mtvec_mode==0)? {mtvec_base, 2'b0} :

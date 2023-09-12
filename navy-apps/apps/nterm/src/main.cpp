@@ -123,7 +123,7 @@ char handle_key(const char *buf) {
   char key[32];
   static int shift = 0;
   sscanf(buf + 2, "%s", key);
-
+  printf("handle key: %s\n", buf);
   if (strcmp(key, "LSHIFT") == 0 || strcmp(key, "RSHIFT") == 0)  { shift ^= 1; return '\0'; }
 
   if (buf[0] == 'd') {
@@ -144,8 +144,9 @@ char handle_key(const char *buf) {
 char handle_key(SDL_Event *ev) {
   static int shift = 0;
   int key = ev->key.keysym.sym;
+  //printf("handle key: %d\n", key);
   if (key == SDLK_LSHIFT || key == SDLK_RSHIFT) { shift ^= 1; return '\0'; }
-
+  //printf("type:%d\n", ev->type);
   if (ev->type == SDL_KEYDOWN) {
     for (auto item: SHIFT) {
       if (item.keycode == key) {

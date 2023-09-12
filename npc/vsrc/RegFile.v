@@ -1,3 +1,4 @@
+
 import "DPI-C" function void set_gpr_ptr(input logic [63:0] a []);
 
 module RegFile #(ADDR_WIDTH = 5, DATA_WIDTH = 64) (
@@ -7,7 +8,6 @@ module RegFile #(ADDR_WIDTH = 5, DATA_WIDTH = 64) (
   input  wire wen,
   input  wire [ADDR_WIDTH-1:0] raddr1,
   input  wire [ADDR_WIDTH-1:0] raddr2,
-  
   output [DATA_WIDTH-1:0] rdata1,
   output [DATA_WIDTH-1:0] rdata2
 );

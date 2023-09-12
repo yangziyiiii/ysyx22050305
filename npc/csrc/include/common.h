@@ -2,12 +2,12 @@
 #define __COMMON_H__
 
 #define CONFIG_ITRACE
-// #define CONFIG_MTRACE
-// #define CONFIG_FTRACE
-// #define CONFIG_DTRACE
-#define CONFIG_DIFFTEST
+//#define CONFIG_MTRACE
+//#define CONFIG_FTRACE
+//#define CONFIG_DTRACE
+// #define CONFIG_DIFFTEST
 #define CONFIG_DEVICE
-// #define BATCH_MODE
+#define BATCH_MODE
 #define CONFIG_HAS_KEYBOARD
 
 #include <stdint.h>

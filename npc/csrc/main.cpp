@@ -93,7 +93,7 @@ void exec_once() {
   #endif
   main_time ++;
 
-  // printf("pc: %lx\n",  top->pc);
+  printf("pc: %lx\n",  top->pc);
   uint32_t i = top->inst;
 #ifdef CONFIG_ITRACE
   char inst[32];
@@ -169,7 +169,11 @@ void cpu_exec(uint64_t n) {
       }
       #endif
       // fall through
-    case NPC_QUIT: return;
+    case NPC_QUIT:
+      printf("NPC END\n");
+      printf("inst_cnt: %ld  cycle_cnt: %ld\n", cpu_cycle, main_time/2);
+      printf("IPC: %.4f\n", (float)cpu_cycle / (main_time/2));
+    return;
   }
 }
 
@@ -208,11 +212,12 @@ int main(int argc, char** argv) {
   
   sdb_mainloop();
   // clean
+
   #ifdef WAVE
   tfp->close();
   delete tfp;
   #endif
+
   delete top;
-  printf("END\n");
   return 0;
 }

@@ -7,7 +7,7 @@ static uint32_t screen_size;
 
 void __am_gpu_init() {
   screen_size = inl(VGACTL_ADDR);
-  //printf("width: %d height: %d\n", screen_size >> 16, screen_size & 0xffff);
+  printf("width: %d height: %d\n", screen_size >> 16, screen_size & 0xffff);
 }
 
 void __am_gpu_config(AM_GPU_CONFIG_T *cfg) {

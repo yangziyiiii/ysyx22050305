@@ -46,11 +46,12 @@ run: $(BIN)
 	@cp $(IMG).elf ./image.elf
 	@$^ $(IMG)
 	$(call git_commit, "run RTL") # DO NOT REMOVE THIS LINE!!!
+	
 
 sim: $(VSRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)
-	@cp $(IMG).bin ./image.bin
-	@cp $(IMG).elf ./image.elf
+	# @cp $(IMG).bin ./image.bin
+	# @cp $(IMG).elf ./image.elf
 	@$(VERILATOR) $(VERILATOR_CFLAGS) \
 		--trace \
 		--top-module $(TOPNAME) $^\

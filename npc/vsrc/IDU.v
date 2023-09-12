@@ -24,7 +24,7 @@ module IDU #(WIDTH = 64)(
   output wire               csr_we,
   output wire               csr_set,
   output wire               ex,
-  output wire               ex_ret,
+  output wire               ex_ret, //mret
   output wire [62:0]        ecode
 
 );
