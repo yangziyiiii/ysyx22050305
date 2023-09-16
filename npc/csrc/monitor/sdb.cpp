@@ -17,7 +17,7 @@
 #include <readline/history.h>
 #include "sdb.h"
 
-static int is_batch_mode = true;
+static int is_batch_mode = false;
 extern NPCState npc_state;
 
 void init_regex();

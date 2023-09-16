@@ -107,7 +107,7 @@ EXEU Exe_stage(
   .exe_result(exe_result)
 );
 
-MEM Mem_stage(
+Memory Mem_stage(
   .clk(clk),
   .raddr(exe_result),
   .rdata(mem_rdata),

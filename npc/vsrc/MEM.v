@@ -1,5 +1,5 @@
 
-module MEM(
+module Memory(
     input wire  clk,
     input wire  [63:0] raddr,
     input wire  [ 6:0] ld_type,

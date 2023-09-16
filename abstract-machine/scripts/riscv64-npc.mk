@@ -5,14 +5,13 @@ AM_SRCS := riscv/npc/start.S \
            riscv/npc/ioe.c \
            riscv/npc/timer.c \
            riscv/npc/input.c \
-           riscv/npc/gpu.c \
            riscv/npc/cte.c \
            riscv/npc/trap.S \
            platform/dummy/vme.c \
            platform/dummy/mpe.c
 
-NPC_HOME = $(AM_HOME)/../npc
-NPCFLAGS += -b -l $(shell dirname $(IMAGE).elf)/npc-log.txt
+
+NPCFLAGS +=-l $(shell dirname $(IMAGE).elf)/npc-log.txt
 
 CFLAGS    += -fdata-sections -ffunction-sections
 LDFLAGS   += -T $(AM_HOME)/scripts/linker.ld --defsym=_pmem_start=0x80000000 --defsym=_entry_offset=0x0

@@ -1,3 +1,34 @@
+/* run nvboard
+#include <nvboard.h>
+#include <Vtop.h>
+
+static TOP_NAME dut;
+
+void nvboard_bind_all_pins(Vtop* top);
+
+static void single_cycle() {
+  dut.clock = 0; dut.eval();
+  dut.clock = 1; dut.eval();
+}
+
+static void reset(int n) {
+  dut.reset = 1;
+  while (n -- > 0) single_cycle();
+  dut.reset = 0;
+}
+
+int main() {
+  nvboard_bind_all_pins(&dut);
+  nvboard_init();
+
+  reset(10);
+
+  while(1) {
+    nvboard_update();
+    single_cycle();
+  }
+}
+*/
 
 // sim
 #include <verilated.h>          
@@ -93,7 +124,7 @@ void exec_once() {
   #endif
   main_time ++;
 
-  printf("pc: %lx\n",  top->pc);
+  //printf("pc: %lx\n",  top->pc);
   uint32_t i = top->inst;
 #ifdef CONFIG_ITRACE
   char inst[32];
@@ -169,11 +200,7 @@ void cpu_exec(uint64_t n) {
       }
       #endif
       // fall through
-    case NPC_QUIT:
-      printf("NPC END\n");
-      printf("inst_cnt: %ld  cycle_cnt: %ld\n", cpu_cycle, main_time/2);
-      printf("IPC: %.4f\n", (float)cpu_cycle / (main_time/2));
-    return;
+    case NPC_QUIT: return;
   }
 }
 
@@ -212,12 +239,11 @@ int main(int argc, char** argv) {
   
   sdb_mainloop();
   // clean
-
   #ifdef WAVE
   tfp->close();
   delete tfp;
   #endif
-
   delete top;
+  printf("END\n");
   return 0;
 }
