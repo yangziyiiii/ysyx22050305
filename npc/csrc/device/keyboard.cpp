@@ -64,7 +64,7 @@ static uint32_t key_dequeue() {
 }
 #endif
 
-static uint32_t i8042_data_port_base;
+static volatile uint32_t i8042_data_port_base;
 
 uint32_t i8042_key() {
   i8042_data_port_base = key_dequeue();

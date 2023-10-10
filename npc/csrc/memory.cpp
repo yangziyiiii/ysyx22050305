@@ -34,7 +34,7 @@ void init_mem() {
   printf("physical memory area [%8x, %8x)\n", CONFIG_MBASE, CONFIG_MBASE+CONFIG_MSIZE);
 }
 
-extern "C" void inst_fetch(long long inst_addr, int * inst){
+extern "C" void inst_fetch(long long inst_addr, int* inst){
     if(out_of_bound(inst_addr)) return;
     *inst = *(uint32_t *)guest_to_host(inst_addr & ~0x3ull);
 }
@@ -45,6 +45,7 @@ extern "C" void pmem_read(long long raddr, long long *rdata, char ren) {
         return;
     
     //device
+    #ifdef CONFIG_DEVICE
     uint32_t us_lo;
     uint32_t us_hi;
     if(raddr == RTC_ADDR){
@@ -86,9 +87,10 @@ extern "C" void pmem_read(long long raddr, long long *rdata, char ren) {
             difftest_skip_ref();
         #endif
         *rdata = i8042_key();
+        //printf("IO_read keybroad: %ld\n", *rdata);
         return;
     }
-
+    #endif
     if(out_of_bound(raddr)) return;
     *rdata = *(uint64_t *)guest_to_host(raddr & ~0x7ull); 
 #ifdef CONFIG_MTRACE
@@ -106,6 +108,7 @@ extern "C" void pmem_write(long long waddr, long long wdata, char wmask) {
         return;
 
     //device
+    #ifdef CONFIG_DEVICE
     if(waddr == SERIAL_PORT){
         #ifdef CONFIG_DIFFTEST
             difftest_skip_ref();
@@ -129,29 +132,31 @@ extern "C" void pmem_write(long long waddr, long long wdata, char wmask) {
         //printf("IO_write FB addr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
         return;
     }
+    #endif
     
     if(out_of_bound(waddr)) return;
-    uint8_t* waddr_p = guest_to_host(waddr);
+    uint64_t* waddr_p = (uint64_t*)guest_to_host(waddr & ~0x7ull);
 #ifdef CONFIG_MTRACE
     //printf("paddr:%llx wdata:%llx wmask:%x\n", waddr, wdata, (uint8_t)wmask);
 #endif
-    
+    uint64_t wstrb;
     switch ((uint8_t)wmask) {  
-        case 0x1:   *(uint8_t  *)waddr_p = wdata; return;
-        case 0x2:   *(uint8_t  *)waddr_p = wdata; return;
-        case 0x4:   *(uint8_t  *)waddr_p = wdata; return;
-        case 0x8:   *(uint8_t  *)waddr_p = wdata; return;
-        case 0x10:  *(uint8_t  *)waddr_p = wdata; return;
-        case 0x20:  *(uint8_t  *)waddr_p = wdata; return;
-        case 0x40:  *(uint8_t  *)waddr_p = wdata; return;
-        case 0x80:  *(uint8_t  *)waddr_p = wdata; return;
-        case 0x3:   *(uint16_t *)waddr_p = wdata; return;
-        case 0xc:   *(uint16_t *)waddr_p = wdata; return;
-        case 0x30:  *(uint16_t *)waddr_p = wdata; return;
-        case 0xc0:  *(uint16_t *)waddr_p = wdata; return;
-        case 0xf:   *(uint32_t *)waddr_p = wdata; return;
-        case 0xf0:  *(uint32_t *)waddr_p = wdata; return;
-        case 0xff:  *(uint64_t *)waddr_p = wdata; return;
+        case 0x1:   wstrb = 0xf; break;
+        case 0x2:   wstrb = 0xf0; break;
+        case 0x4:   wstrb = 0xf00; break;
+        case 0x8:   wstrb = 0xf000; break;
+        case 0x10:  wstrb = 0xf0000; break;
+        case 0x20:  wstrb = 0xf00000; break;
+        case 0x40:  wstrb = 0xf000000; break;
+        case 0x80:  wstrb = 0xf0000000; break;
+        case 0x3:   wstrb = 0xff; break;
+        case 0xc:   wstrb = 0xff00; break;
+        case 0x30:  wstrb = 0xff0000; break;
+        case 0xc0:  wstrb = 0xff000000; break;
+        case 0xf:   wstrb = 0xffff; break;
+        case 0xf0:  wstrb = 0xffff0000; break;
+        case 0xff:  wstrb = 0xffffffff; break;
         default: assert(0);
     }
+    *waddr_p = (*waddr_p & ~wmask) | (wdata & wmask);
 }

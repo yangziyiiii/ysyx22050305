@@ -48,7 +48,6 @@ all: default
 
 run: $(BIN)
 	@$^
-	$(call git_commit, "run RTL") # DO NOT REMOVE THIS LINE!!!
 
 sim: $(VSRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)

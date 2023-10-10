@@ -31,8 +31,8 @@ typedef __uint64_t word_t;
 typedef __uint64_t paddr_t;
 typedef __uint64_t vaddr_t;
 
-//instrom
-extern uint32_t inst_rom[100000];
+// //instrom
+// extern uint32_t inst_rom[100000];
 
 enum { NPC_RUNNING, NPC_STOP, NPC_END, NPC_ABORT, NPC_QUIT };
 

@@ -1,34 +1,3 @@
-/* run nvboard
-#include <nvboard.h>
-#include <Vtop.h>
-
-static TOP_NAME dut;
-
-void nvboard_bind_all_pins(Vtop* top);
-
-static void single_cycle() {
-  dut.clock = 0; dut.eval();
-  dut.clock = 1; dut.eval();
-}
-
-static void reset(int n) {
-  dut.reset = 1;
-  while (n -- > 0) single_cycle();
-  dut.reset = 0;
-}
-
-int main() {
-  nvboard_bind_all_pins(&dut);
-  nvboard_init();
-
-  reset(10);
-
-  while(1) {
-    nvboard_update();
-    single_cycle();
-  }
-}
-*/
 
 // sim
 #include <verilated.h>          
@@ -63,7 +32,8 @@ static VerilatedContext* contextp;
 static Vtop* top;
 static VerilatedVcdC* tfp;
 static vluint64_t main_time = 0;
-static const vluint64_t sim_time = 1000000000; //max sim time
+static const vluint64_t sim_time = -1; //max sim time
+static const vluint64_t wave_start_time = 95000000; //wave start time
 static long cpu_cycle = 0;
 
 extern uint64_t *cpu_gpr;
@@ -100,16 +70,16 @@ void cpu_init() {
   top -> clk = 0;
   top -> rst = 1;
   top -> eval();
-  #ifdef WAVE
+  /*#ifdef WAVE
   tfp->dump(main_time);
-  #endif
+  #endif*/
   main_time ++;
   top -> clk = 1;
   top -> rst = 1;
   top -> eval();
-  #ifdef WAVE
+  /*#ifdef WAVE
   tfp->dump(main_time);
-  #endif
+  #endif*/
   main_time ++;
   top -> rst = 0;
   top -> eval();
@@ -120,33 +90,36 @@ void exec_once() {
   top->clk = !top->clk;
   top->eval();
   #ifdef WAVE
-  tfp->dump(main_time);
+  if(main_time > wave_start_time)
+    tfp->dump(main_time);
   #endif
   main_time ++;
 
-  //printf("pc: %lx\n",  top->pc);
-  uint32_t i = top->inst;
 #ifdef CONFIG_ITRACE
-  char inst[32];
-  void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
-  disassemble(inst, 32, top->pc, (uint8_t*)&top->inst, 4);
-  printf("%s\n", inst);
-  sprintf(iringbuf[idx++], "%016lx %s", top->pc, inst);
-  if(idx >= 16)
-    idx = 0;
+  if(top->debug_valid){
+    char inst[32];
+    void disassemble(char *str, int size, uint64_t pc, uint8_t *code, int nbyte);
+    disassemble(inst, 32, top->debug_pc, (uint8_t*)&top->debug_inst, 4);
+    printf("%lx %s\n", top->debug_pc, inst);
+    sprintf(iringbuf[idx++], "%016lx %s", top->debug_pc, inst);
+    if(idx >= 16)
+      idx = 0;
+  }
 #endif
   
   top->clk = !top->clk;
   top->eval(); 
   #ifdef WAVE
-	tfp->dump(main_time);
+	if(main_time > wave_start_time)
+    tfp->dump(main_time);
   #endif
   main_time ++;
 
-  npc_cpu.pc = top->pc;
+  if(top->debug_valid){
+  npc_cpu.pc = top->debug_pc;
   for(int i=0;i<32;i++)
     npc_cpu.gpr[i] = cpu_gpr[i];
-
+  }
 #ifdef CONFIG_FTRACE
   void ftrace(uint32_t inst);
   ftrace(i);
@@ -163,14 +136,20 @@ void cpu_exec(uint64_t n) {
 
   for(int i; i < n; i++){
       exec_once();
-      cpu_cycle++;
 
-      #ifdef CONFIG_DIFFTEST
-        difftest_step(npc_cpu.pc, npc_cpu.pc+4);
-      #endif
-      device_update();
+      if(top->debug_valid){
+        cpu_cycle++;
+
+        #ifdef CONFIG_DIFFTEST
+        if(cpu_cycle > 1)
+          difftest_step(npc_cpu.pc, npc_cpu.pc+4);
+        #endif
+        #ifdef CONFIG_DEVICE
+        device_update();
+        #endif
+      }
       if(npc_state.state != NPC_RUNNING) break;
-      if(/*main_time > sim_time || */npc_state.halt_ret){
+      if(main_time > sim_time || npc_state.halt_ret){
         npc_state.state = NPC_END;
         break;
       }
@@ -200,7 +179,16 @@ void cpu_exec(uint64_t n) {
       }
       #endif
       // fall through
-    case NPC_QUIT: return;
+    case NPC_QUIT: 
+    printf("NPC END\n");
+    printf("inst_cnt: %ld  cycle_cnt: %ld\n", cpu_cycle, main_time/2);
+    printf("IPC: %.4f\n", (float)cpu_cycle / (main_time/2));
+    printf("inst_cnt: %ld, icache_miss: %ld, miss_rate: %.6f\n", top->inst_cnt, top->icache_miss, (float)(top->icache_miss)/cpu_cycle);
+    printf("mem_cnt: %ld, dcache_miss: %ld, miss_rate: %.6f\n", top->mem_cnt, top->dcache_miss, (float)(top->dcache_miss)/(top->mem_cnt));
+    printf("device cnt: %ld\n", top->device_cnt);
+    printf("mul cnt: %ld\n", top->mul_cnt);
+    printf("div cnt: %ld\n", top->div_cnt);
+    return;
   }
 }
 
@@ -222,7 +210,10 @@ int main(int argc, char** argv) {
   cpu_init();
   init_sdb();
   init_disasm("riscv64-pc-linux-gnu");
+
+  #ifdef CONFIG_DEVICE
   init_device();
+  #endif
 
   //ftrace
   #ifdef CONFIG_FTRACE
@@ -244,6 +235,5 @@ int main(int argc, char** argv) {
   delete tfp;
   #endif
   delete top;
-  printf("END\n");
   return 0;
 }
