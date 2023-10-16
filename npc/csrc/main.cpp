@@ -33,7 +33,7 @@ static Vtop* top;
 static VerilatedVcdC* tfp;
 static vluint64_t main_time = 0;
 static const vluint64_t sim_time = -1; //max sim time
-static const vluint64_t wave_start_time = 95000000; //wave start time
+static const vluint64_t wave_start_time = 0; //wave start time
 static long cpu_cycle = 0;
 
 extern uint64_t *cpu_gpr;
@@ -51,7 +51,7 @@ void ebreak() {
 }
 
 long load_image() {
-  char image_path[] = "/home/yzy/ysyx-workbench/npc/image.bin";
+  char image_path[] = "../npc/image.bin";
   FILE *fp = fopen(image_path, "rb");
   if( fp == NULL ) {
 		printf( "Can not open inst file!\n" );
@@ -70,16 +70,12 @@ void cpu_init() {
   top -> clk = 0;
   top -> rst = 1;
   top -> eval();
-  /*#ifdef WAVE
-  tfp->dump(main_time);
-  #endif*/
+  
   main_time ++;
   top -> clk = 1;
   top -> rst = 1;
   top -> eval();
-  /*#ifdef WAVE
-  tfp->dump(main_time);
-  #endif*/
+
   main_time ++;
   top -> rst = 0;
   top -> eval();
@@ -223,7 +219,7 @@ int main(int argc, char** argv) {
 
   //difftest
   #ifdef CONFIG_DIFFTEST
-      char diff_so_file[100] = "/home/yzy/ysyx-workbench/nemu/build/riscv64-nemu-interpreter-so";
+      char diff_so_file[100] = "../nemu/build/riscv64-nemu-interpreter-so";
       int difftest_port = 1234;
       init_difftest(diff_so_file, img_size, difftest_port);
   #endif

@@ -46,10 +46,8 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 
 all: default
 
-run: $(BIN)
-	@$^
 
-sim: $(VSRCS) $(CSRCS)
+run: $(VSRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)
 	@cp $(IMG).bin ./image.bin
 	@cp $(IMG).elf ./image.elf

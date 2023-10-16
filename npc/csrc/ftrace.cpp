@@ -16,7 +16,7 @@ static Functab functab[1024];
 static int functab_len;
 
 int elf_load(){
-  char elf[] = "/home/yzy/ysyx-workbench/npc/image.elf";
+  char elf[] = "../npc/image.elf";
 
   FILE *fp = fopen(elf, "r");
 
