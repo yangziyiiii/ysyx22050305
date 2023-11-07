@@ -48,7 +48,7 @@ module CSR (
     reg [62:0] mcause_code;
     always @(posedge clk) begin
         if (rst)
-            mcause_intr <= 0; //warning
+            mcause_intr = 0; //warning
     end
     always @(posedge clk) begin
         if (ex)

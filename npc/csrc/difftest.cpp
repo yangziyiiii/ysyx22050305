@@ -11,7 +11,6 @@ uint8_t* guest_to_host(paddr_t paddr);
 enum { DIFFTEST_TO_DUT, DIFFTEST_TO_REF };
 
 static bool is_skip_ref = false;
-static bool is_device = false;
 void difftest_skip_ref() {
   is_skip_ref = true;
 }
@@ -42,7 +41,7 @@ void init_difftest(char *ref_so_file, long img_size, int port) {
     printf("The result of every instruction will be compared with %s.\n", ref_so_file);
 
     ref_difftest_init(port);
-    ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), 0x8000000, DIFFTEST_TO_REF);
+    ref_difftest_memcpy(RESET_VECTOR, guest_to_host(RESET_VECTOR), img_size, DIFFTEST_TO_REF);
     ref_difftest_regcpy(&npc_cpu, DIFFTEST_TO_REF);
     //printf("npc_pc:%lx\n", npc_cpu.pc);
 }
@@ -55,9 +54,9 @@ bool difftest_checkregs(CPU_state *ref_r, vaddr_t pc){
             return false;
         }
     }
-    if(ref_r->pc != pc){
+    if(ref_r->pc != npc_cpu.pc){
         printf("ref_pc:%lx\n", ref_r->pc);
-        printf("npc_pc:%lx\n", pc);
+        printf("npc_pc:%lx\n", npc_cpu.pc);
         return false;
     }
     return true;
@@ -73,17 +72,11 @@ static void checkregs(CPU_state *ref, vaddr_t pc) {
     }
 }
 
-
 void difftest_step(vaddr_t pc, vaddr_t npc) {
     CPU_state ref_r;
 
-    if(is_device){
-        ref_difftest_regcpy(&npc_cpu, DIFFTEST_TO_REF);
-        is_device = false;
-        return;
-    }
     if(is_skip_ref){
-        is_device = true;
+        ref_difftest_regcpy(&npc_cpu, DIFFTEST_TO_REF);
         is_skip_ref = false;
         return;
     }

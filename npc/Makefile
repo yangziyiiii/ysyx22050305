@@ -46,36 +46,28 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 
 all: default
 
+run: $(BIN)
+	@cp $(IMG).bin ./image.bin
+	@cp $(IMG).elf ./image.elf
+	@$^
+	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
 
-run: $(VSRCS) $(CSRCS)
-	@rm -rf $(OBJ_DIR)
-	@cp $(IMG).bin ./image.bin
-	@cp $(IMG).elf ./image.elf
-	@$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--top-module $(TOPNAME) $^\
-		$(addprefix -CFLAGS , $(CFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
-		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	$(BUILD_DIR)/$(TOPNAME)
+# run: $(VSRCS) $(CSRCS)
+# 	@rm -rf $(OBJ_DIR)
+# 	@cp $(IMG).bin ./image.bin
+# 	@cp $(IMG).elf ./image.elf
+# 	@$(VERILATOR) $(VERILATOR_CFLAGS) \
+# 		--top-module $(TOPNAME) $^\
+# 		$(addprefix -CFLAGS , $(CFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
+# 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
+# 	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
+# 	@$^
 	
-wave: $(VSRCS) $(CSRCS)
-	@rm -rf $(OBJ_DIR)
-	@cp $(IMG).bin ./image.bin
-	@cp $(IMG).elf ./image.elf
-	@$(VERILATOR) $(VERILATOR_CFLAGS) \
-		--trace \
-		--top-module $(TOPNAME) $^\
-		-CFLAGS -DWAVE \
-		$(addprefix -CFLAGS , $(CFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
-		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
-	$(BUILD_DIR)/$(TOPNAME)
-	gtkwave wave.vcd
 
 clean:
 	rm -rf ./build
 	rm wave.vcd
 
-.PHONY: default all clean run sim wave
+.PHONY: default all clean run
 
 include ../Makefile

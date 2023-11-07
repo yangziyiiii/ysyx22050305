@@ -1,14 +1,9 @@
 module alu #(WIDTH = 64)(
-  input  wire clk,
-  input  wire rst,
-  input  wire inst_32bit,
+  input  wire        inst_32bit,
   input  wire [16:0] alu_op,
   input  wire [WIDTH-1:0] alu_src1,
   input  wire [WIDTH-1:0] alu_src2,
-  output wire [WIDTH-1:0] alu_result,
-  input  wire alu_busy,
-  output wire alu_out_valid,
-  input  wire alu_flush
+  output wire [WIDTH-1:0] alu_result
 );
 
 wire op_add;   //add operation
@@ -61,6 +56,11 @@ wire [WIDTH-1:0] sll_result;
 wire [WIDTH*2-1:0] sr_extend;
 wire [WIDTH-1:0] sr_result;
 wire [WIDTH-1:0] mul_result;
+wire [WIDTH-1:0] div_result;
+wire [WIDTH-1:0] divu_result;
+wire [WIDTH-1:0] rem_result;
+wire [WIDTH-1:0] remu_result;
+
 
 //adder
 wire [WIDTH-1:0] adder_a;
@@ -103,78 +103,12 @@ assign sr_extend  = inst_32bit? {{96{op_sra & alu_src1[31]}}, alu_src1[31:0]} >>
 
 assign sr_result  = sr_extend[WIDTH-1:0]; 
 
-//multiplier 
-wire mulh = 0;
-reg  mul_valid;
-wire mul_ready;
-wire mul_flush = alu_flush;
-wire [1:0] mul_signed = 2'b0;
-wire mul_out_valid;
-wire [63:0] mul_result_hi;
-wire [63:0] mul_result_lo;
-
-assign mul_result = mulh? mul_result_hi : mul_result_lo;
-
-always @(posedge clk) begin
-  if(rst)
-    mul_valid <= 0;
-  else if(mul_valid == 1)
-    mul_valid <= 0;
-  else if(op_mul && alu_busy && mul_ready)
-    mul_valid <= 1;
-end
-
-multiplier multiplier(
-  .clk(clk),	
-  .rst(rst),	
-
-  .mul_valid(mul_valid),
-  .flush(mul_flush),	
-  .mulw(inst_32bit),	
-  .mul_signed(mul_signed),	
-  .multiplicand(alu_src1),	
-  .multiplier(alu_src2),	   
-  .mul_ready(mul_ready),
-  .out_valid(mul_out_valid),
-  .result_hi(mul_result_hi),
-  .result_lo(mul_result_lo)
-);
-
-//divisioner
-reg  div_valid;
-wire div_ready;
-wire div_flush = alu_flush;
-wire div_signed = op_div || op_rem;
-wire div_out_valid;
-wire [63:0] quotient;
-wire [63:0] remainder;
-
-always @(posedge clk) begin
-  if(rst)
-    div_valid <= 0;
-  else if(div_valid == 1)
-    div_valid <= 0;
-  else if((op_div || op_divu || op_rem || op_remu) && alu_busy && div_ready)
-    div_valid <= 1;
-end
-
-divisioner divisioner(
-  .clk(clk),	
-  .rst(rst),	
-
-  .div_valid(div_valid),
-  .flush(div_flush),	
-  .divw(inst_32bit),	
-  .div_signed(div_signed),	
-  .dividend(alu_src1),	
-  .divisor(alu_src2),	   
-  .div_ready(div_ready),
-  .out_valid(div_out_valid),
-  .quotient(quotient),
-  .remainder(remainder)
-);
-
-assign alu_out_valid = div_out_valid || mul_out_valid;
+//mul/div
+assign mul_result = alu_src1 * alu_src2;
+assign div_result = $signed(alu_src1 / alu_src2);
+assign divu_result = alu_src1 / alu_src2;
+assign rem_result = $signed(alu_src1 % alu_src2);
+assign remu_result = alu_src1 % alu_src2;
 
 // final result mux
 assign alu_result = ({WIDTH{op_add|op_sub}} & add_sub_result)
@@ -188,7 +122,9 @@ assign alu_result = ({WIDTH{op_add|op_sub}} & add_sub_result)
                   | ({WIDTH{op_sll       }} & sll_result)
                   | ({WIDTH{op_srl|op_sra}} & sr_result)
                   | ({WIDTH{op_mul       }} & mul_result)
-                  | ({WIDTH{op_div|op_divu}} & quotient)
-                  | ({WIDTH{op_rem|op_remu}} & remainder);
+                  | ({WIDTH{op_div       }} & div_result)
+                  | ({WIDTH{op_divu      }} & divu_result)
+                  | ({WIDTH{op_rem       }} & rem_result)
+                  | ({WIDTH{op_remu      }} & remu_result);
 
 endmodule
