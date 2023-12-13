@@ -21,12 +21,12 @@ module IDU #(WIDTH = 64)(
     output wire [16:0] alu_op,
 
     //异常处理
-    output wire               csr_re,
-    output wire               csr_we,
-    output wire               csr_set,
-    output wire               ex,
-    output wire               ex_ret,
-    output wire [62:0]        ecode
+    output wire csr_re,
+    output wire csr_we,
+    output wire csr_set,
+    output wire ex,
+    output wire ex_ret,
+    output wire [62:0] ecode
 );
 
 wire [6 :0]     opcode;

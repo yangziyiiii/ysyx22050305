@@ -17,7 +17,11 @@ module IFU(
     output wire [63:0] next_pc,
     
     //if_id_reg
-    output reg [63:0] pc
+    output reg [63:0] pc,
+    output reg [31:0] inst,
+    output reg if_valid,
+    input wire mem_valid,
+    input wire debug_valid
 );
 
     always @(posedge clk) begin
