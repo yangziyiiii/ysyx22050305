@@ -37,8 +37,8 @@ $(BIN): $(VSRCS) $(CSRCS) $(NVBOARD_ARCHIVE)
 
 all: default
 
-run: $(VSRCS) $(CSRCS)
-	$(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!!
+run: $(call git_commit, "sim RTL") # DO NOT REMOVE THIS LINE!!! 
+	$(VSRCS) $(CSRCS)
 	@rm -rf $(OBJ_DIR)
 	@cp $(IMG).bin ./image.bin
 	@cp $(IMG).elf ./image.elf
@@ -46,7 +46,6 @@ run: $(VSRCS) $(CSRCS)
 		--top-module $(TOPNAME) $^\
 		$(addprefix -CFLAGS , $(CFLAGS)) $(addprefix -LDFLAGS , $(LDFLAGS)) \
 		--Mdir $(OBJ_DIR) --exe -o $(abspath $(BIN))
-	
 	$(BUILD_DIR)/$(TOPNAME)
 	
 clean:

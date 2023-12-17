@@ -2,13 +2,14 @@ module top(
     input wire clk,
     input wire rst,
 
+    output wire debug_valid,
     output wire [31:0] inst,
     output wire [63:0] pc,
-    output wire [63:0] next_pc,
+    output wire [63:0] next_pc
 );
 
 //if_stage
-
+wire if_valid;
 
 //id_stage
 wire [4:0] rs1;
@@ -32,6 +33,7 @@ wire [63:0] exe_result_32bit;
 wire [63:0] mem_rdata;
 wire [6:0] ld_type;
 wire [3:0] st_type;
+wire mem_valid;
 
 //csr
 wire ex;
@@ -59,16 +61,12 @@ IFU If_stage(
   .ex_ret(ex_ret),
   .epc(csr_rvalue),
   .nextpc(nextpc),
-  .pc(pc)
+  .pc(pc),
+  .inst(inst),
+  .if_valid(if_valid),
+  .mem_valid(mem_valid),
+  .debug_valid(debug_valid)
 );
-
-/* verilator lint_off LATCH */
-import "DPI-C" function void inst_fetch(input longint inst_addr, output int inst);
-always @(*) begin
-  if(!rst)
-    inst_fetch(pc, inst);
-end
-
 
 IDU Id_stage(
   .rst(rst),
@@ -111,13 +109,13 @@ EXEU Exe_stage(
 
 MEM Mem_stage(
   .clk(clk),
-  .raddr(exe_result),
+  .rst(rst),
+  .addr(exe_result),
   .rdata(mem_rdata),
   .ld_type(ld_type),
-
-  .waddr(exe_result),
   .st_type(st_type),
-  .wdata(r_data2)
+  .wdata(r_data2),
+  .mem_valid(mem_valid)
 );
 
 assign exe_result_32bit = {{32{exe_result[31]}}, exe_result[31:0]};
@@ -132,7 +130,7 @@ RegFile Regfile(
   .clk(clk),
   .wdata(rd_wdata),
   .waddr(rd),
-  .wen(rd_wen),
+  .wen(rd_wen & debug_valid),
   
   .raddr1(rs1),
   .rdata1(r_data1),
@@ -145,14 +143,14 @@ assign csr_wvalue = csr_set? 64'hffffffffffffffff : r_data1;
 CSR csr(
   .clk(clk),
   .rst(rst), 
-  .csr_re(csr_re),
+  .csr_re(csr_re & debug_valid),
   .csr_num(op2[11:0]),
   .csr_rvalue(csr_rvalue),
-  .csr_we(csr_we),
+  .csr_we(csr_we & debug_valid),
   .csr_wmask(csr_wmask),
   .csr_wvalue(csr_wvalue),
 
-  .ex(ex),
+  .ex(ex & debug_valid),
   .ex_ret(ex_ret),
   .epc(pc),
   .ecode(ecode),
@@ -162,6 +160,8 @@ CSR csr(
 EBREAK ebreak(
   .inst(inst)
 );
+
+  assign debug_valid = mem_valid & if_valid;
 
 endmodule 
 

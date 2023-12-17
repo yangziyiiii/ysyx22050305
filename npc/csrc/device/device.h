@@ -1,7 +1,7 @@
 #ifndef __DEVICE_H__
 #define __DEVICE_H__
 
-#include "./common.h"
+#include "../include/common.h"
 
 #define DEVICE_BASE 0xa0000000
 #define MMIO_BASE 0xa0000000

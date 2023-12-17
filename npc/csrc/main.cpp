@@ -12,17 +12,17 @@ void init_mem();
 uint8_t* guest_to_host(paddr_t paddr);
 uint32_t inst_fetch(paddr_t inst_addr);
 
-// void init_sdb();
-// word_t expr(char *e, bool *success);
-// void sdb_mainloop();
+void init_sdb();
+word_t expr(char *e, bool *success);
+void sdb_mainloop();
 
-// void init_disasm(const char *triple);
-// #ifdef CONFIG_DIFFTEST
-//   void difftest_step(vaddr_t pc, vaddr_t npc);
-//   void init_difftest(char *ref_so_file, long img_size, int port);
-// #endif
-// void init_device();
-// void device_update();
+void init_disasm(const char *triple);
+#ifdef CONFIG_DIFFTEST
+  void difftest_step(vaddr_t pc, vaddr_t npc);
+  void init_difftest(char *ref_so_file, long img_size, int port);
+#endif
+void init_device();
+void device_update();
 
 static VerilatedContext* contextp;
 static Vtop* top;
@@ -36,6 +36,9 @@ static long cpu_cycle = 0;
 extern uint64_t *cpu_gpr;
 CPU_state npc_cpu = {.pc = RESET_VECTOR};
 NPCState npc_state = {.state = NPC_STOP, .halt_ret = 0};
+
+static char iringbuf[16][65];
+static int idx = 0;
 
 void ebreak() {
     npc_state.halt_ret = 1;
@@ -99,6 +102,16 @@ void cpu_exec(uint64_t n) {
   for(int i = 0; i < n; i++) {
     exec_once(tfp);
 
+    if(top -> debug_valid){
+      cpu_cycle ++;
+      #ifdef CONFIG_DIFFTEST
+        difftest_step(npc_cpu.pc, npc_cpu.pc+4);
+      #endif
+
+      #ifdef CONFIG_DEVICE
+        device_update();
+      #endif
+    }
     if (npc_state.state != NPC_RUNNING) break;
 
     if(main_time > sim_time || npc_state.halt_ret){
@@ -123,13 +136,6 @@ void cpu_exec(uint64_t n) {
       }
     case NPC_QUIT: 
       printf("NPC END\n");
-      // printf("inst_cnt: %ld  cycle_cnt: %ld\n", cpu_cycle, main_time/2);
-      // printf("IPC: %.4f\n", (float)cpu_cycle / (main_time/2));
-      // printf("inst_cnt: %ld, icache_miss: %ld, miss_rate: %.6f\n", top->inst_cnt, top->icache_miss, (float)(top->icache_miss)/cpu_cycle);
-      // printf("mem_cnt: %ld, dcache_miss: %ld, miss_rate: %.6f\n", top->mem_cnt, top->dcache_miss, (float)(top->dcache_miss)/(top->mem_cnt));
-      // printf("device cnt: %ld\n", top->device_cnt);
-      // printf("mul cnt: %ld\n", top->mul_cnt);
-      // printf("div cnt: %ld\n", top->div_cnt);
     return;
   }
 }
@@ -168,16 +174,11 @@ int main(int argc, char** argv) {
     init_difftest(diff_so_file, img_size, difftest_port);
   #endif
 
-  //ftrace    
-  #ifdef CONFIG_FTRACE
-    init_ftrace();
-
-  #endif
-
   sdb_mainloop();
 
   //clean
-  tfp->close();
   delete top;
+  printf("inst_cnt: %ld  cycle_cnt: %ld\n", cpu_cycle, main_time/2);
+  printf("IPC: %.4f\n", (float)cpu_cycle / (main_time/2));
   return 0;
 }
