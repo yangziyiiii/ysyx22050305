@@ -1,4 +1,4 @@
-#include "../include/common.h"
+#include "./include/common.h"
 #include <time.h>
 
 static uint64_t boot_time = 0;

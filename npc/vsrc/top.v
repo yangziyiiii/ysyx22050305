@@ -50,7 +50,7 @@ wire [63:0] csr_wvalue;
 //regfile
 wire [63:0] r_data1;
 wire [63:0] r_data2;
-
+/* verilator lint_off IMPLICIT */
 IFU If_stage(
   .clk(clk),
   .rst(rst),
@@ -60,7 +60,9 @@ IFU If_stage(
   .ex_entry(ex_entry),
   .ex_ret(ex_ret),
   .epc(csr_rvalue),
+  /* verilator lint_off WIDTHEXPAND */
   .nextpc(nextpc),
+  /* verilator lint_off WIDTHEXPAND */
   .pc(pc),
   .inst(inst),
   .if_valid(if_valid),

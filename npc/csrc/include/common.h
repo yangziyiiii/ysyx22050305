@@ -6,9 +6,9 @@
 //#define CONFIG_FTRACE
 //#define CONFIG_DTRACE
 //#define CONFIG_DIFFTEST
-// #define CONFIG_DEVICE
-// #define BATCH_MODE
-// #define CONFIG_HAS_KEYBOARD
+#define CONFIG_DEVICE
+#define BATCH_MODE
+#define CONFIG_HAS_KEYBOARD
 
 #include <stdint.h>
 #include <inttypes.h>
@@ -30,6 +30,9 @@
 typedef __uint64_t word_t;
 typedef __uint64_t paddr_t;
 typedef __uint64_t vaddr_t;
+
+//instrom
+extern uint32_t inst_rom[100000];
 
 enum { NPC_RUNNING, NPC_STOP, NPC_END, NPC_ABORT, NPC_QUIT };
 

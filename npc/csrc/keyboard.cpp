@@ -5,6 +5,12 @@
 #ifndef CONFIG_TARGET_AM
 #include <SDL2/SDL.h>
 
+
+#define PAGE_SHIFT        12
+#define PAGE_SIZE         (1ul << PAGE_SHIFT)
+#define PAGE_MASK         (PAGE_SIZE - 1)
+
+
 // Note that this is not the standard
 #define _KEYS(f) \
   f(ESCAPE) f(F1) f(F2) f(F3) f(F4) f(F5) f(F6) f(F7) f(F8) f(F9) f(F10) f(F11) f(F12) \
@@ -39,7 +45,7 @@ static void key_enqueue(uint32_t am_scancode) {
   assert(key_r != key_f);
 }
 
-static uint32_t key_dequeue() {
+uint32_t key_dequeue() {
   uint32_t key = _KEY_NONE;
   if (key_f != key_r) {
     key = key_queue[key_f];
@@ -64,14 +70,15 @@ static uint32_t key_dequeue() {
 }
 #endif
 
-static uint32_t i8042_data_port_base;
+static uint32_t i8042_data_port_base[4];
 
-uint32_t i8042_key() {
-  i8042_data_port_base = key_dequeue();
-  return i8042_data_port_base;
+static void i8042_data_io_handler(uint32_t offset, int len, bool is_write) {
+  assert(!is_write);
+  assert(offset == 0);
+  i8042_data_port_base[0] = key_dequeue();
 }
 
 void init_i8042() {
-  i8042_data_port_base = _KEY_NONE;
+  i8042_data_port_base[0] = _KEY_NONE;
   init_keymap();
 }

@@ -1,4 +1,4 @@
-#include "./device/device.h"
+#include "device.h"
 #include "verilated_dpi.h"
 #include "svdpi.h"
 #include "Vtop__Dpi.h"
@@ -8,8 +8,8 @@
 static uint8_t pmem[CONFIG_MSIZE] __attribute((aligned(4096))) = {};
 extern uint32_t *vgactl_port_base;
 extern void *vmem;
-uint32_t i8042_key();
 uint32_t screen_size();
+uint32_t key_dequeue();
 
 void difftest_skip_ref();
 uint8_t* guest_to_host(paddr_t paddr) { return pmem + paddr - CONFIG_MBASE; }
@@ -83,7 +83,8 @@ extern "C" void pmem_read(long long raddr, long long *rdata, char ren) {
         #ifdef CONFIG_DIFFTEST
             difftest_skip_ref();
         #endif
-        *rdata = i8042_key();
+        // *rdata = i8042_key();
+        *rdata = key_dequeue();
         return;
     }
     #endif

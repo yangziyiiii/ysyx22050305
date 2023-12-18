@@ -107,7 +107,7 @@ module cache (
         else
             cache_state <= cache_nstate;
     end 
-
+/* verilator lint_off COMBDLY */
     always @(*) begin
         case(cache_state)
         `CACHE_INIT:
